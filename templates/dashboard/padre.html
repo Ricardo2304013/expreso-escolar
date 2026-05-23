@@ -1,0 +1,82 @@
+{% extends 'base.html' %}
+{% block title %}Mi Panel - Expreso Escolar{% endblock %}
+{% block page_title %}Mi Panel{% endblock %}
+{% block breadcrumb %}Inicio / Mi Panel{% endblock %}
+{% block topbar_actions %}
+<a href="{% url 'registrar_estudiante' %}" class="btn btn-primary btn-sm">+ Registrar Estudiante</a>
+{% endblock %}
+{% block content %}
+{% if not padre %}
+<div class="alert alert-warning">⚠️ Tu perfil de padre no está completo. Contacta al administrador.</div>
+{% endif %}
+
+{% if not estudiantes %}
+<div class="card" style="text-align:center; padding:3rem">
+  <div style="font-size:3rem">🎒</div>
+  <h3 style="margin:1rem 0 0.5rem">No tienes estudiantes registrados</h3>
+  <p class="text-muted" style="margin-bottom:1.5rem">Registra a tu hijo/a para solicitar el servicio de transporte.</p>
+  <a href="{% url 'registrar_estudiante' %}" class="btn btn-primary">+ Registrar Estudiante</a>
+</div>
+{% else %}
+<div class="stats-grid">
+  <div class="stat-card"><div class="stat-icon blue">🎒</div><div><div class="stat-value">{{ estudiantes|length }}</div><div class="stat-label">Mis Estudiantes</div></div></div>
+</div>
+<div style="display:grid; grid-template-columns:repeat(auto-fill,minmax(340px,1fr)); gap:1rem">
+{% for est in estudiantes %}
+<div class="card">
+  <div class="flex justify-between items-center" style="margin-bottom:1rem">
+    <div>
+      <h3 style="font-size:1.1rem; font-weight:700">{{ est.nombre }} {{ est.apellido }}</h3>
+      <p class="text-muted text-sm">{{ est.curso }} "{{ est.paralelo }}"</p>
+    </div>
+    {% if est.estado == 'activo' %}<span class="badge badge-green">✅ Activo</span>
+    {% elif est.estado == 'pendiente' %}<span class="badge badge-yellow">⏳ Pendiente</span>
+    {% elif est.estado == 'retirado' %}<span class="badge badge-gray">Retirado</span>
+    {% else %}<span class="badge badge-red">❌ No Aceptado</span>{% endif %}
+  </div>
+
+  {% if est.expreso %}
+  <div style="background:#f8fafc; border-radius:8px; padding:0.75rem; margin-bottom:0.75rem">
+    <p class="text-sm"><strong>🚌 Expreso:</strong> {{ est.expreso.nombre }} ({{ est.expreso.placa }})</p>
+    {% if est.expreso.transportista %}
+    <p class="text-sm"><strong>👤 Transportista:</strong> {{ est.expreso.transportista.get_full_name }}</p>
+    {% if est.expreso.transportista.telefono %}
+    <p class="text-sm"><strong>📞 Teléfono:</strong>
+      <a href="tel:{{ est.expreso.transportista.telefono }}" style="color:var(--primary); font-weight:600">
+        {{ est.expreso.transportista.telefono }}
+      </a>
+    </p>
+    {% endif %}
+    {% endif %}
+  </div>
+  {% elif est.estado == 'pendiente' %}
+  <div class="alert alert-warning" style="margin-bottom:0.75rem; font-size:0.8rem">⏳ Esperando asignación de expreso por el administrador.</div>
+  {% elif est.estado == 'no_aceptado' %}
+  <div class="alert alert-error" style="margin-bottom:0.75rem; font-size:0.8rem">❌ El transportista rechazó la solicitud. Contacta al administrador.</div>
+  {% endif %}
+
+  {% if est.direccion %}
+  <p class="text-sm text-muted">📍 {{ est.direccion }}</p>
+  {% endif %}
+  
+    {% if est.estado != 'retirado' %}
+  <div class="flex gap-2" style="margin-top:0.75rem">
+    {% if est.estado == 'activo' and est.expreso %}
+    <a href="{% url 'cambiar_expreso' est.pk %}" class="btn btn-primary btn-sm">
+      🔄 Cambiar Expreso
+    </a>
+    {% endif %}
+    <form method="post" action="{% url 'retirar_estudiante' est.pk %}">
+      {% csrf_token %}
+      <button type="submit" class="btn btn-outline btn-sm"
+        onclick="return confirm('¿Retirar a {{ est.nombre }} del servicio?')">
+        🚫 Retirar del servicio
+      </button>
+    </form>
+  </div>
+  {% endif %}
+</div>
+{% endfor %}
+</div>
+{% endif %}
+{% endblock %}

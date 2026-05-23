@@ -1,0 +1,157 @@
+{% extends 'base.html' %}
+{% block title %}Expresos - Expreso Escolar{% endblock %}
+{% block page_title %}Gestión de Expresos{% endblock %}
+{% block topbar_actions %}
+<a href="{% url 'crear_expreso' %}" class="btn btn-primary btn-sm">+ Nuevo Expreso</a>
+{% endblock %}
+
+{% block content %}
+
+<!-- BUSCADOR Y FILTROS -->
+<div class="card" style="margin-bottom:1rem; padding:1rem 1.5rem">
+  <form method="get" style="display:grid; grid-template-columns:1fr auto auto; gap:0.75rem; align-items:end">
+
+    <div>
+      <label class="form-label" style="margin-bottom:0.35rem">🔍 Buscar expreso</label>
+      <input type="text" name="q" value="{{ busqueda }}"
+        class="form-control"
+        placeholder="Nombre, placa, transportista...">
+    </div>
+
+    <div>
+      <label class="form-label" style="margin-bottom:0.35rem">Estado</label>
+      <select name="estado" class="form-select" style="min-width:150px">
+        <option value="" {% if not filtro_estado %}selected{% endif %}>Todos</option>
+        <option value="activo" {% if filtro_estado == 'activo' %}selected{% endif %}>✅ Activos</option>
+        <option value="inactivo" {% if filtro_estado == 'inactivo' %}selected{% endif %}>🚫 Inactivos</option>
+      </select>
+    </div>
+
+    <div style="display:flex; gap:0.5rem">
+      <button type="submit" class="btn btn-primary">Buscar</button>
+      {% if busqueda or filtro_estado %}
+      <a href="{% url 'lista_expresos' %}" class="btn btn-outline">✕ Limpiar</a>
+      {% endif %}
+    </div>
+
+  </form>
+</div>
+
+<!-- TABLA -->
+<div class="card">
+  <div class="card-header">
+    <span class="card-title">
+      🚌 Lista de Expresos
+      {% if busqueda %}— Resultados para "<strong>{{ busqueda }}</strong>"{% endif %}
+    </span>
+    <span class="badge badge-blue">{{ total }} expreso{{ total|pluralize:"s" }}</span>
+  </div>
+
+  <div class="table-responsive">
+    <table>
+      <thead>
+        <tr>
+          <th>Expreso</th>
+          <th>Placa</th>
+          <th>Transportista</th>
+          <th>Capacidad</th>
+          <th>Cupos</th>
+          <th>Estado</th>
+          <th style="width:120px; text-align:center">Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for exp in expresos %}
+      <tr>
+        <td><strong>{{ exp.nombre }}</strong></td>
+        <td>{{ exp.placa }}</td>
+        <td>{{ exp.transportista|default:"Sin asignar" }}</td>
+        <td style="text-align:center">{{ exp.capacidad }}</td>
+        <td>
+          <div style="min-width:130px">
+            <div style="display:flex; justify-content:space-between; font-size:0.82rem; margin-bottom:3px">
+            <span>{{ exp.cupos_disponibles }} libres</span>
+            <span style="margin-left:8px">{{ exp.porcentaje_ocupacion }}%</span>
+          </div>
+            <div class="progress">
+              <div class="progress-bar
+                {% if exp.porcentaje_ocupacion > 80 %}red
+                {% elif exp.porcentaje_ocupacion > 60 %}orange{% endif %}"
+                style="width:{{ exp.porcentaje_ocupacion }}%">
+              </div>
+            </div>
+          </div>
+        </td>
+        <td>
+          {% if exp.activo %}
+            <span class="badge badge-green">✅ Activo</span>
+          {% else %}
+            <span class="badge badge-gray">🚫 Inactivo</span>
+          {% endif %}
+        </td>
+        <td>
+          <div style="display:flex; gap:0.4rem; justify-content:center">
+            <a href="{% url 'editar_expreso' exp.pk %}" class="btn btn-outline btn-sm">✏️</a>
+            <form method="post" action="{% url 'eliminar_expreso' exp.pk %}" style="margin:0">
+              {% csrf_token %}
+              <button type="submit" class="btn btn-danger btn-sm"
+                onclick="return confirm('¿Eliminar {{ exp.nombre }}?')">🗑️</button>
+            </form>
+          </div>
+        </td>
+      </tr>
+      {% empty %}
+      <tr>
+        <td colspan="7" style="text-align:center; padding:3rem; color:#94a3b8">
+          {% if busqueda %}
+            😔 No se encontraron expresos para "<strong>{{ busqueda }}</strong>"
+          {% else %}
+            No hay expresos registrados.
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- PAGINACIÓN -->
+  {% if expresos.has_other_pages %}
+  <div style="display:flex; justify-content:space-between; align-items:center;
+              padding:1rem 0 0; border-top:1px solid #f1f5f9; margin-top:0.5rem">
+
+    <span class="text-muted text-sm">
+      Página {{ expresos.number }} de {{ expresos.paginator.num_pages }}
+      — mostrando {{ expresos.start_index }}–{{ expresos.end_index }} de {{ total }}
+    </span>
+
+    <div style="display:flex; gap:0.4rem">
+      {% if expresos.has_previous %}
+      <a href="?page=1{% if busqueda %}&q={{ busqueda }}{% endif %}{% if filtro_estado %}&estado={{ filtro_estado }}{% endif %}"
+         class="btn btn-outline btn-sm">«</a>
+      <a href="?page={{ expresos.previous_page_number }}{% if busqueda %}&q={{ busqueda }}{% endif %}{% if filtro_estado %}&estado={{ filtro_estado }}{% endif %}"
+         class="btn btn-outline btn-sm">‹ Anterior</a>
+      {% endif %}
+
+      {% for num in expresos.paginator.page_range %}
+        {% if expresos.number == num %}
+          <span class="btn btn-primary btn-sm">{{ num }}</span>
+        {% elif num > expresos.number|add:'-3' and num < expresos.number|add:'3' %}
+          <a href="?page={{ num }}{% if busqueda %}&q={{ busqueda }}{% endif %}{% if filtro_estado %}&estado={{ filtro_estado }}{% endif %}"
+             class="btn btn-outline btn-sm">{{ num }}</a>
+        {% endif %}
+      {% endfor %}
+
+      {% if expresos.has_next %}
+      <a href="?page={{ expresos.next_page_number }}{% if busqueda %}&q={{ busqueda }}{% endif %}{% if filtro_estado %}&estado={{ filtro_estado }}{% endif %}"
+         class="btn btn-outline btn-sm">Siguiente ›</a>
+      <a href="?page={{ expresos.paginator.num_pages }}{% if busqueda %}&q={{ busqueda }}{% endif %}{% if filtro_estado %}&estado={{ filtro_estado }}{% endif %}"
+         class="btn btn-outline btn-sm">»</a>
+      {% endif %}
+    </div>
+
+  </div>
+  {% endif %}
+
+</div>
+{% endblock %}

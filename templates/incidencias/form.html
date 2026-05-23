@@ -1,0 +1,25 @@
+{% extends 'base.html' %}
+{% block title %}Reportar Incidencia - Expreso Escolar{% endblock %}
+{% block page_title %}Reportar Incidencia{% endblock %}
+{% block content %}
+<div class="card" style="max-width:500px; margin:0 auto">
+  <div class="card-header"><span class="card-title">⚠️ Nueva Incidencia</span></div>
+  <p class="text-muted text-sm" style="margin-bottom:1rem">Expreso: <strong>{{ expreso.nombre }} ({{ expreso.placa }})</strong></p>
+  <form method="post">
+    {% csrf_token %}
+    <div class="form-group">
+      <label class="form-label">Tipo de Incidencia</label>
+      {{ form.tipo }}
+    </div>
+    <div class="form-group">
+      <label class="form-label">Descripción</label>
+      {{ form.descripcion }}
+      <small class="text-muted">Máximo 500 caracteres</small>
+    </div>
+    <div class="flex gap-2" style="margin-top:1.5rem">
+      <button type="submit" class="btn btn-warning">Reportar</button>
+      <a href="{% url 'dashboard' %}" class="btn btn-outline">Cancelar</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

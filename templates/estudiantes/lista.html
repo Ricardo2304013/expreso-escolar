@@ -1,0 +1,165 @@
+{% extends 'base.html' %}
+{% block title %}Estudiantes - Expreso Escolar{% endblock %}
+{% block page_title %}Gestión de Estudiantes{% endblock %}
+{% block topbar_actions %}
+<a href="{% url 'crear_asignacion' %}" class="btn btn-primary btn-sm">🔗 Asignar Estudiante</a>
+{% endblock %}
+
+{% block content %}
+
+<!-- BUSCADOR Y FILTROS -->
+<div class="card" style="margin-bottom:1rem; padding:1rem 1.5rem">
+  <form method="get" style="display:grid; grid-template-columns:1fr auto auto; gap:0.75rem; align-items:end">
+
+    <!-- Búsqueda -->
+    <div>
+      <label class="form-label" style="margin-bottom:0.35rem">🔍 Buscar estudiante</label>
+      <input type="text" name="q" value="{{ busqueda }}"
+        class="form-control"
+        placeholder="Nombre, apellido, representante, curso...">
+    </div>
+
+    <!-- Filtro estado -->
+    <div>
+      <label class="form-label" style="margin-bottom:0.35rem">Estado</label>
+      <select name="estado" class="form-select" style="min-width:160px">
+        <option value="" {% if not estado_filtro %}selected{% endif %}>Todos</option>
+        <option value="pendiente" {% if estado_filtro == 'pendiente' %}selected{% endif %}>⏳ Pendientes</option>
+        <option value="activo" {% if estado_filtro == 'activo' %}selected{% endif %}>✅ Activos</option>
+        <option value="no_aceptado" {% if estado_filtro == 'no_aceptado' %}selected{% endif %}>❌ No Aceptados</option>
+        <option value="retirado" {% if estado_filtro == 'retirado' %}selected{% endif %}>🚫 Retirados</option>
+      </select>
+    </div>
+
+    <!-- Botones -->
+    <div style="display:flex; gap:0.5rem">
+      <button type="submit" class="btn btn-primary">Buscar</button>
+      {% if busqueda or estado_filtro %}
+      <a href="{% url 'lista_estudiantes' %}" class="btn btn-outline">✕ Limpiar</a>
+      {% endif %}
+    </div>
+
+  </form>
+</div>
+
+<!-- RESULTADOS -->
+<div class="card">
+  <div class="card-header">
+    <span class="card-title">
+      Lista de Estudiantes
+      {% if busqueda %}
+        — Resultados para "<strong>{{ busqueda }}</strong>"
+      {% endif %}
+    </span>
+    <span class="badge badge-blue">{{ total }} estudiante{{ total|pluralize:"s" }}</span>
+  </div>
+
+  <div class="table-responsive">
+    <table>
+      <thead>
+        <tr>
+          <th>Estudiante</th>
+          <th>Curso</th>
+          <th>Representante</th>
+          <th>Expreso</th>
+          <th>Estado</th>
+          <th style="width:120px; text-align:center">Acción</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for est in estudiantes %}
+      <tr>
+        <td>
+          <strong>{{ est.apellido }}, {{ est.nombre }}</strong><br>
+          <small class="text-muted">{{ est.created_at|date:"d/m/Y" }}</small>
+        </td>
+        <td>{{ est.curso }} "{{ est.paralelo }}"</td>
+        <td>
+          {{ est.padre.usuario.get_full_name }}<br>
+          <small class="text-muted">{{ est.padre.telefono }}</small>
+        </td>
+        <td>
+          {% if est.expreso %}
+            <span class="badge badge-blue">{{ est.expreso.nombre }}</span>
+          {% else %}
+            <span class="text-muted">Sin asignar</span>
+          {% endif %}
+        </td>
+        <td>
+          {% if est.estado == 'activo' %}<span class="badge badge-green">✅ Activo</span>
+          {% elif est.estado == 'pendiente' %}<span class="badge badge-yellow">⏳ Pendiente</span>
+          {% elif est.estado == 'retirado' %}<span class="badge badge-gray">🚫 Retirado</span>
+          {% else %}<span class="badge badge-red">❌ No Aceptado</span>{% endif %}
+        </td>
+        <td>
+          <div style="display:flex; gap:0.4rem; justify-content:center">
+            {% if est.estado == 'pendiente' and not est.expreso %}
+              <a href="{% url 'crear_asignacion' %}" class="btn btn-primary btn-sm">Asignar</a>
+            {% elif est.estado == 'no_aceptado' %}
+              <a href="{% url 'crear_asignacion' %}?tipo=no_aceptado" class="btn btn-warning btn-sm">Reasignar</a>
+            {% elif est.estado == 'pendiente' and est.expreso %}
+              <span class="badge badge-blue" style="font-size:0.72rem">⏳ Asignado</span>
+            {% else %}
+              <span class="text-muted">—</span>
+            {% endif %}
+          </div>
+        </td>
+      </tr>
+      {% empty %}
+      <tr>
+        <td colspan="6" style="text-align:center; padding:3rem; color:#94a3b8">
+          {% if busqueda %}
+            😔 No se encontraron estudiantes para "<strong>{{ busqueda }}</strong>"
+          {% else %}
+            No hay estudiantes registrados.
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- PAGINACIÓN -->
+  {% if estudiantes.has_other_pages %}
+  <div style="display:flex; justify-content:space-between; align-items:center;
+              padding:1rem 0 0; border-top:1px solid #f1f5f9; margin-top:0.5rem">
+
+    <span class="text-muted text-sm">
+      Página {{ estudiantes.number }} de {{ estudiantes.paginator.num_pages }}
+      — mostrando {{ estudiantes.start_index }}–{{ estudiantes.end_index }} de {{ total }}
+    </span>
+
+    <div style="display:flex; gap:0.4rem">
+      <!-- Primera -->
+      {% if estudiantes.has_previous %}
+      <a href="?page=1{% if busqueda %}&q={{ busqueda }}{% endif %}{% if estado_filtro %}&estado={{ estado_filtro }}{% endif %}"
+         class="btn btn-outline btn-sm">«</a>
+      <a href="?page={{ estudiantes.previous_page_number }}{% if busqueda %}&q={{ busqueda }}{% endif %}{% if estado_filtro %}&estado={{ estado_filtro }}{% endif %}"
+         class="btn btn-outline btn-sm">‹ Anterior</a>
+      {% endif %}
+
+      <!-- Páginas numeradas -->
+      {% for num in estudiantes.paginator.page_range %}
+        {% if estudiantes.number == num %}
+          <span class="btn btn-primary btn-sm">{{ num }}</span>
+        {% elif num > estudiantes.number|add:'-3' and num < estudiantes.number|add:'3' %}
+          <a href="?page={{ num }}{% if busqueda %}&q={{ busqueda }}{% endif %}{% if estado_filtro %}&estado={{ estado_filtro }}{% endif %}"
+             class="btn btn-outline btn-sm">{{ num }}</a>
+        {% endif %}
+      {% endfor %}
+
+      <!-- Última -->
+      {% if estudiantes.has_next %}
+      <a href="?page={{ estudiantes.next_page_number }}{% if busqueda %}&q={{ busqueda }}{% endif %}{% if estado_filtro %}&estado={{ estado_filtro }}{% endif %}"
+         class="btn btn-outline btn-sm">Siguiente ›</a>
+      <a href="?page={{ estudiantes.paginator.num_pages }}{% if busqueda %}&q={{ busqueda }}{% endif %}{% if estado_filtro %}&estado={{ estado_filtro }}{% endif %}"
+         class="btn btn-outline btn-sm">»</a>
+      {% endif %}
+    </div>
+
+  </div>
+  {% endif %}
+
+</div>
+{% endblock %}

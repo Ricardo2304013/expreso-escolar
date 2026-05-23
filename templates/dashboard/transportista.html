@@ -1,0 +1,77 @@
+{% extends 'base.html' %}
+{% block title %}Mi Dashboard - Expreso Escolar{% endblock %}
+{% block page_title %}Mi Panel de Transportista{% endblock %}
+{% block breadcrumb %}Inicio / Mi Dashboard{% endblock %}
+{% block content %}
+{% if not expreso %}
+<div class="card" style="text-align:center; padding:3rem">
+  <div style="font-size:3rem">🚌</div>
+  <h3 style="margin:1rem 0 0.5rem">Sin expreso asignado</h3>
+  <p class="text-muted">El administrador te asignará un expreso.</p>
+</div>
+{% else %}
+<div class="stats-grid">
+  <div class="stat-card"><div class="stat-icon green">👨‍🎓</div><div><div class="stat-value">{{ estudiantes_activos.count }}</div><div class="stat-label">Estudiantes Activos</div></div></div>
+  <div class="stat-card"><div class="stat-icon yellow">⏳</div><div><div class="stat-value">{{ pendientes.count }}</div><div class="stat-label">Solicitudes Pendientes</div></div></div>
+  <div class="stat-card"><div class="stat-icon blue">🚌</div><div><div class="stat-value">{{ expreso.cupos_disponibles }}</div><div class="stat-label">Cupos Disponibles</div></div></div>
+  <div class="stat-card"><div class="stat-icon purple">📊</div><div><div class="stat-value">{{ expreso.capacidad }}</div><div class="stat-label">Capacidad Total</div></div></div>
+</div>
+
+{% if pendientes %}
+<div class="card">
+  <div class="card-header"><span class="card-title">⏳ Solicitudes Pendientes</span></div>
+  <div class="table-responsive">
+    <table>
+      <thead><tr><th>Estudiante</th><th>Curso</th><th>Representante</th><th>Teléfono</th><th>Acciones</th></tr></thead>
+      <tbody>
+      {% for asig in pendientes %}
+      <tr>
+        <td><strong>{{ asig.estudiante.nombre }} {{ asig.estudiante.apellido }}</strong></td>
+        <td>{{ asig.estudiante.curso }} "{{ asig.estudiante.paralelo }}"</td>
+        <td>{{ asig.estudiante.padre.usuario.get_full_name }}</td>
+        <td>{{ asig.estudiante.padre.telefono }}</td>
+        <td class="flex gap-2">
+          <a href="{% url 'aceptar_asignacion' asig.pk %}" class="btn btn-success btn-sm">✅ Aceptar</a>
+          <form method="post" action="{% url 'rechazar_asignacion' asig.pk %}" style="display:inline">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-danger btn-sm" onclick="return confirm('¿Rechazar esta asignación?')">❌ Rechazar</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+<div class="card">
+  <div class="card-header">
+    <span class="card-title">🎒 Mis Estudiantes ({{ expreso.nombre }} - {{ expreso.placa }})</span>
+    <a href="{% url 'reportar_incidencia' %}" class="btn btn-warning btn-sm">⚠️ Reportar Incidencia</a>
+  </div>
+  <div class="table-responsive">
+    <table>
+      <thead><tr><th>Estudiante</th><th>Curso</th><th>Representante</th><th>Teléfono</th><th>Servicio</th></tr></thead>
+      <tbody>
+      {% for est in estudiantes_activos %}
+      <tr>
+        <td><strong>{{ est.nombre }} {{ est.apellido }}</strong></td>
+        <td>{{ est.curso }} "{{ est.paralelo }}"</td>
+        <td>{{ est.padre.usuario.get_full_name }}</td>
+        <td>{{ est.padre.telefono }}</td>
+        <td>
+          {% with est.asignaciones.filter as asigs %}
+          <span class="badge badge-blue">Completo</span>
+          {% endwith %}
+        </td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="5" style="text-align:center; color:#94a3b8">No tienes estudiantes activos aún.</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,123 @@
+{% extends 'base.html' %}
+{% block title %}Cambiar Expreso - Expreso Escolar{% endblock %}
+{% block page_title %}Cambiar de Expreso{% endblock %}
+{% block breadcrumb %}Mi Panel / Cambiar Expreso{% endblock %}
+
+{% block content %}
+<div style="max-width:700px; margin:0 auto">
+
+  <!-- Info del estudiante -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">🎒 Estudiante</span>
+    </div>
+    <div style="display:flex; align-items:center; gap:1rem">
+      <div style="width:52px; height:52px; border-radius:50%; background:#dbeafe;
+                  display:flex; align-items:center; justify-content:center; font-size:1.5rem">
+        🎒
+      </div>
+      <div>
+        <div style="font-size:1.1rem; font-weight:700">{{ estudiante.nombre }} {{ estudiante.apellido }}</div>
+        <div class="text-muted text-sm">{{ estudiante.curso }} "{{ estudiante.paralelo }}"</div>
+        {% if estudiante.expreso %}
+        <div class="text-sm" style="margin-top:0.25rem">
+          Expreso actual: <strong>{{ estudiante.expreso.nombre }} ({{ estudiante.expreso.placa }})</strong>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Lista de expresos disponibles -->
+  <div class="card">
+    <div class="card-header">
+      <span class="card-title">🚌 Expresos Disponibles</span>
+      <span class="badge badge-blue">{{ expresos_disponibles.count }} disponible{{ expresos_disponibles.count|pluralize:"s" }}</span>
+    </div>
+
+    {% if not expresos_disponibles %}
+    <div class="empty-state">
+      <div class="icon">😔</div>
+      <p>No hay otros expresos con cupos disponibles en este momento.</p>
+      <a href="{% url 'dashboard' %}" class="btn btn-outline" style="margin-top:1rem">Volver</a>
+    </div>
+
+    {% else %}
+    <form method="post">
+      {% csrf_token %}
+      <div style="display:grid; gap:0.75rem; margin-bottom:1.5rem">
+        {% for exp in expresos_disponibles %}
+        <label style="display:block; cursor:pointer">
+          <input type="radio" name="expreso_id" value="{{ exp.pk }}"
+                 style="display:none" class="expreso-radio">
+          <div class="expreso-opcion" style="
+            border: 2px solid #e2e8f0; border-radius:12px; padding:1rem 1.25rem;
+            transition: all 0.2s; background:white;
+          ">
+            <div style="display:flex; justify-content:space-between; align-items:center">
+              <div style="display:flex; align-items:center; gap:0.75rem">
+                <span style="font-size:1.75rem">🚌</span>
+                <div>
+                  <div style="font-weight:700; font-size:1rem">{{ exp.nombre }}</div>
+                  <div class="text-muted text-sm">Placa: {{ exp.placa }}</div>
+                  {% if exp.transportista %}
+                  <div class="text-sm">
+                    👤 {{ exp.transportista.get_full_name }}
+                    {% if exp.transportista.telefono %}
+                    — 📞 <a href="tel:{{ exp.transportista.telefono }}"
+                            style="color:var(--primary)">{{ exp.transportista.telefono }}</a>
+                    {% endif %}
+                  </div>
+                  {% endif %}
+                </div>
+              </div>
+              <div style="text-align:right">
+                <!-- Barra de ocupación -->
+                <div style="font-size:0.8rem; color:#64748b; margin-bottom:4px">
+                  {{ exp.cupos_disponibles }} cupos libres de {{ exp.capacidad }}
+                </div>
+                <div class="progress" style="width:120px">
+                  <div class="progress-bar
+                    {% if exp.porcentaje_ocupacion > 80 %}red
+                    {% elif exp.porcentaje_ocupacion > 60 %}orange{% endif %}"
+                    style="width:{{ exp.porcentaje_ocupacion }}%">
+                  </div>
+                </div>
+                <div style="margin-top:6px">
+                  <span class="badge badge-green">✅ Con cupo</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </label>
+        {% endfor %}
+      </div>
+
+      <div class="flex gap-2">
+        <button type="submit" class="btn btn-primary" id="btn-confirmar" disabled>
+          🔄 Confirmar Cambio
+        </button>
+        <a href="{% url 'dashboard' %}" class="btn btn-outline">Cancelar</a>
+      </div>
+    </form>
+    {% endif %}
+  </div>
+</div>
+
+<style>
+  .expreso-radio:checked + .expreso-opcion {
+    border-color: var(--primary);
+    background: #eff6ff;
+    box-shadow: 0 0 0 3px rgba(26,86,219,0.15);
+  }
+</style>
+
+<script>
+  // Habilitar botón solo cuando selecciona un expreso
+  document.querySelectorAll('.expreso-radio').forEach(radio => {
+    radio.addEventListener('change', () => {
+      document.getElementById('btn-confirmar').disabled = false;
+    });
+  });
+</script>
+{% endblock %}

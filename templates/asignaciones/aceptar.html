@@ -1,0 +1,28 @@
+{% extends 'base.html' %}
+{% block title %}Aceptar Asignación - Expreso Escolar{% endblock %}
+{% block page_title %}Aceptar Solicitud{% endblock %}
+{% block content %}
+<div class="card" style="max-width:500px; margin:0 auto">
+  <div class="card-header"><span class="card-title">✅ Aceptar Estudiante</span></div>
+  <div style="background:#f8fafc; border-radius:8px; padding:1rem; margin-bottom:1.5rem">
+    <p><strong>👤 Estudiante:</strong> {{ asig.estudiante.nombre }} {{ asig.estudiante.apellido }}</p>
+    <p><strong>📚 Curso:</strong> {{ asig.estudiante.curso }} "{{ asig.estudiante.paralelo }}"</p>
+    <p><strong>👨‍👩‍👦 Representante:</strong> {{ asig.estudiante.padre.usuario.get_full_name }}</p>
+    <p><strong>📞 Teléfono:</strong> {{ asig.estudiante.padre.telefono }}</p>
+    {% if asig.estudiante.observacion %}
+    <p><strong>📝 Observaciones:</strong> {{ asig.estudiante.observacion }}</p>
+    {% endif %}
+  </div>
+  <form method="post">
+    {% csrf_token %}
+    <div class="form-group">
+      <label class="form-label">Tipo de Servicio</label>
+      {{ form.tipo_servicio }}
+    </div>
+    <div class="flex gap-2" style="margin-top:1.5rem">
+      <button type="submit" class="btn btn-success">✅ Aceptar</button>
+      <a href="{% url 'dashboard' %}" class="btn btn-outline">Cancelar</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

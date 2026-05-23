@@ -1,0 +1,148 @@
+{% extends 'base.html' %}
+
+{% block title %}Asignar Estudiante - Expreso Escolar{% endblock %}
+{% block page_title %}Asignar Estudiante a Expreso{% endblock %}
+
+{% block content %}
+<div class="assignment-container">
+
+  <!-- Selector -->
+  <div class="assignment-selector">
+
+    <a href="{% url 'crear_asignacion' %}?tipo=pendiente" class="selector-link">
+      <div class="selector-card {% if tipo == 'pendiente' %}active-pending{% endif %}">
+        <div class="selector-icon">⏳</div>
+
+        <div class="selector-title {% if tipo == 'pendiente' %}text-primary{% endif %}">
+          Estudiantes Pendientes
+        </div>
+
+        <div class="selector-count text-primary">
+          {{ pendientes_count }}
+        </div>
+
+        <div class="text-muted text-sm">
+          Sin expreso asignado
+        </div>
+      </div>
+    </a>
+
+    <a href="{% url 'crear_asignacion' %}?tipo=no_aceptado" class="selector-link">
+      <div class="selector-card {% if tipo == 'no_aceptado' %}active-rejected{% endif %}">
+        <div class="selector-icon">❌</div>
+
+        <div class="selector-title {% if tipo == 'no_aceptado' %}text-danger{% endif %}">
+          No Aceptados
+        </div>
+
+        <div class="selector-count text-danger">
+          {{ no_aceptados_count }}
+        </div>
+
+        <div class="text-muted text-sm">
+          Rechazados por transportista
+        </div>
+      </div>
+    </a>
+
+  </div>
+
+  <!-- Formulario -->
+  <div class="card">
+
+    <div class="card-header">
+
+      <span class="card-title">
+        {% if tipo == 'no_aceptado' %}
+          ❌ Reasignar Estudiante No Aceptado
+        {% else %}
+          🔗 Nueva Asignación
+        {% endif %}
+      </span>
+
+      {% if tipo == 'no_aceptado' %}
+        <span class="badge badge-red">No Aceptados</span>
+      {% else %}
+        <span class="badge badge-yellow">Pendientes</span>
+      {% endif %}
+
+    </div>
+
+    {% if tipo == 'no_aceptado' and no_aceptados_count == 0 %}
+
+      <div class="empty-state">
+        <div class="icon">✅</div>
+        <p>No hay estudiantes rechazados en este momento.</p>
+      </div>
+
+    {% elif tipo == 'pendiente' and pendientes_count == 0 %}
+
+      <div class="empty-state">
+        <div class="icon">🎉</div>
+        <p>Todos los estudiantes ya están asignados.</p>
+      </div>
+
+    {% else %}
+
+      <form method="post">
+
+        {% csrf_token %}
+
+        <input type="hidden" name="tipo_estudiante" value="{{ tipo }}">
+
+        <div class="form-group">
+          <label class="form-label">
+
+            {% if tipo == 'no_aceptado' %}
+              Estudiante No Aceptado
+            {% else %}
+              Estudiante Pendiente
+            {% endif %}
+
+          </label>
+
+          {{ form.estudiante }}
+
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">
+            Expreso Disponible
+          </label>
+
+          {{ form.expreso }}
+        </div>
+
+        {% if tipo == 'no_aceptado' %}
+          <div class="alert alert-warning">
+            ⚠️ Este estudiante fue rechazado anteriormente. 
+            Al reasignarlo, el nuevo transportista deberá aceptarlo.
+          </div>
+        {% endif %}
+
+        <div class="flex gap-2 mt-2">
+
+          <button type="submit" class="btn btn-primary">
+
+            {% if tipo == 'no_aceptado' %}
+              🔄 Reasignar
+            {% else %}
+              ✅ Crear Asignación
+            {% endif %}
+
+          </button>
+
+          <a href="{% url 'lista_estudiantes' %}" class="btn btn-outline">
+            Cancelar
+          </a>
+
+        </div>
+
+      </form>
+
+    {% endif %}
+
+  </div>
+
+</div>
+{% endblock %}

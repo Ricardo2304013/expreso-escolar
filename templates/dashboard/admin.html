@@ -1,0 +1,170 @@
+{% extends 'base.html' %}
+{% block title %}Dashboard Admin - Expreso Escolar{% endblock %}
+{% block page_title %}Dashboard Administrativo{% endblock %}
+{% block breadcrumb %}Inicio / Dashboard{% endblock %}
+{% block topbar_actions %}
+<a href="{% url 'crear_expreso' %}" class="btn btn-primary btn-sm">+ Nuevo Expreso</a>
+{% endblock %}
+{% block content %}
+
+<div class="stats-grid">
+  <div class="stat-card">
+    <div class="stat-icon blue">🎒</div>
+    <div><div class="stat-value">{{ total_estudiantes }}</div><div class="stat-label">Total Estudiantes</div></div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon green">✅</div>
+    <div><div class="stat-value">{{ activos }}</div><div class="stat-label">Estudiantes Activos</div></div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon yellow">⏳</div>
+    <div><div class="stat-value">{{ pendientes }}</div><div class="stat-label">Pendientes</div></div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon red">🚫</div>
+    <div><div class="stat-value">{{ retirados }}</div><div class="stat-label">Retirados</div></div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon red">❌</div>
+    <div><div class="stat-value">{{ no_aceptados }}</div><div class="stat-label">No Aceptados</div></div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon purple">👥</div>
+    <div><div class="stat-value">{{ total_padres }}</div><div class="stat-label">Representantes</div></div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon blue">🚌</div>
+    <div><div class="stat-value">{{ expresos_activos }}</div><div class="stat-label">Expresos Activos</div></div>
+  </div>
+</div>
+
+<!-- GRID PRINCIPAL: Expresos + Estudiantes -->
+<div style="display:grid; grid-template-columns:1fr 1fr; gap:1.5rem; margin-bottom:1.5rem">
+
+  <!-- OCUPACIÓN POR EXPRESO -->
+  <div class="card" style="margin-bottom:0; display:flex; flex-direction:column; max-height:480px">
+    <div class="card-header">
+      <span class="card-title">🚌 Ocupación por Expreso</span>
+      <a href="{% url 'lista_expresos' %}" class="btn btn-outline btn-sm">Ver todos</a>
+    </div>
+    <div style="overflow-y:auto; flex:1; padding-right:2px">
+    {% for exp in expresos %}
+    <a href="{% url 'listado_por_expreso' %}?tab=exp-{{ exp.pk }}"
+       style="text-decoration:none; color:inherit; display:block">
+      <div class="expreso-item" style="cursor:pointer; transition:all 0.2s"
+           onmouseover="this.style.borderColor='var(--primary)'; this.style.background='#eff6ff'"
+           onmouseout="this.style.borderColor='#e2e8f0'; this.style.background='#f8fafc'">
+        <div class="flex justify-between items-center mb-1">
+          <strong style="font-size:0.9rem">{{ exp.nombre }}</strong>
+          <span class="badge badge-{% if exp.activo %}green{% else %}gray{% endif %}">
+            {% if exp.activo %}Activo{% else %}Inactivo{% endif %}
+          </span>
+        </div>
+        <div class="text-sm text-muted mb-1">
+          {{ exp.placa }} — {{ exp.transportista|default:"Sin asignar" }}
+        </div>
+        <div class="flex justify-between text-sm mb-1">
+          <span>{{ exp.cupos_ocupados }}/{{ exp.capacidad }} cupos</span>
+          <span>{{ exp.porcentaje_ocupacion }}%</span>
+        </div>
+        <div class="progress">
+          <div class="progress-bar
+            {% if exp.porcentaje_ocupacion > 80 %}red
+            {% elif exp.porcentaje_ocupacion > 60 %}orange{% endif %}"
+            style="width:{{ exp.porcentaje_ocupacion }}%">
+          </div>
+        </div>
+        <div style="margin-top:0.5rem; font-size:0.78rem; color:var(--primary); font-weight:600">
+          Ver listado →
+        </div>
+      </div>
+    </a>
+    {% empty %}
+    <div class="empty-state"><div class="icon">🚌</div><p>No hay expresos registrados.</p></div>
+    {% endfor %}
+    </div>
+  </div>
+
+  <!-- ÚLTIMOS ESTUDIANTES -->
+  <div class="card" style="margin-bottom:0; display:flex; flex-direction:column; max-height:480px">
+    <div class="card-header">
+      <span class="card-title">🎒 Últimos Estudiantes</span>
+      <a href="{% url 'lista_estudiantes' %}" class="btn btn-outline btn-sm">Ver todos</a>
+    </div>
+    <div style="overflow-y:auto; flex:1">
+      <table style="width:100%; border-collapse:collapse">
+        <thead>
+          <tr>
+            <th style="position:sticky;top:0;background:#f8fafc;padding:0.6rem 0.75rem;font-size:0.72rem;font-weight:700;color:#64748b;text-transform:uppercase;border-bottom:2px solid #e2e8f0">Estudiante</th>
+            <th style="position:sticky;top:0;background:#f8fafc;padding:0.6rem 0.75rem;font-size:0.72rem;font-weight:700;color:#64748b;text-transform:uppercase;border-bottom:2px solid #e2e8f0">Expreso</th>
+            <th style="position:sticky;top:0;background:#f8fafc;padding:0.6rem 0.75rem;font-size:0.72rem;font-weight:700;color:#64748b;text-transform:uppercase;border-bottom:2px solid #e2e8f0">Estado</th>
+            <th style="position:sticky;top:0;background:#f8fafc;padding:0.6rem 0.75rem;font-size:0.72rem;font-weight:700;color:#64748b;text-transform:uppercase;border-bottom:2px solid #e2e8f0">Acción</th>
+          </tr>
+        </thead>
+        <tbody>
+        {% for est in ultimos_estudiantes %}
+        <tr style="border-bottom:1px solid #f1f5f9">
+          <td style="padding:0.6rem 0.75rem;font-size:0.85rem">
+            <strong>{{ est.apellido }}, {{ est.nombre }}</strong><br>
+            <small class="text-muted">{{ est.curso }} "{{ est.paralelo }}"</small>
+          </td>
+          <td style="padding:0.6rem 0.75rem;font-size:0.85rem">
+            {% if est.expreso %}
+              <span class="badge badge-blue" style="font-size:0.72rem">{{ est.expreso.nombre }}</span>
+            {% else %}
+              <span class="text-muted" style="font-size:0.8rem">Sin asignar</span>
+            {% endif %}
+          </td>
+          <td style="padding:0.6rem 0.75rem">
+            {% if est.estado == 'activo' %}<span class="badge badge-green">Activo</span>
+            {% elif est.estado == 'pendiente' %}<span class="badge badge-yellow">Pendiente</span>
+            {% elif est.estado == 'retirado' %}<span class="badge badge-gray">Retirado</span>
+            {% else %}<span class="badge badge-red">No Ac.</span>{% endif %}
+          </td>
+          <td style="padding:0.6rem 0.75rem">
+            {% if est.estado == 'pendiente' and not est.expreso %}
+              <a href="{% url 'crear_asignacion' %}" class="btn btn-primary btn-sm">Asignar</a>
+            {% elif est.estado == 'no_aceptado' %}
+              <a href="{% url 'crear_asignacion' %}?tipo=no_aceptado" class="btn btn-warning btn-sm">Reasignar</a>
+            {% elif est.estado == 'pendiente' and est.expreso %}
+              <span class="badge badge-blue" style="font-size:0.72rem">⏳ Asignado</span>
+            {% else %}
+              <span class="text-muted">—</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="4" style="text-align:center;padding:2rem;color:#94a3b8">Sin estudiantes</td></tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- INCIDENCIAS RECIENTES — altura fija pequeña -->
+<div class="card" style="margin-bottom:0; display:flex; flex-direction:column; max-height:280px">
+  <div class="card-header">
+    <span class="card-title">⚠️ Incidencias Recientes</span>
+    <a href="{% url 'lista_incidencias' %}" class="btn btn-outline btn-sm">Ver todas</a>
+  </div>
+  <div style="overflow-y:auto; flex:1">
+    <table style="width:100%; border-collapse:collapse">
+      
+      <tbody>
+      {% for inc in incidencias %}
+      <tr style="border-bottom:1px solid #f1f5f9">
+        <td style="padding:0.55rem 1rem;font-size:0.85rem;white-space:nowrap">{{ inc.icono }} {{ inc.get_tipo_display }}</td>
+        <td style="padding:0.55rem 1rem;font-size:0.85rem">{{ inc.expreso.nombre }}</td>
+        <td style="padding:0.55rem 1rem;font-size:0.85rem">{{ inc.reportado_por.get_full_name }}</td>
+        <td style="padding:0.55rem 1rem;font-size:0.82rem;color:#64748b;white-space:nowrap">{{ inc.fecha|date:"d/m/Y H:i" }}</td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="4" style="text-align:center;padding:1.5rem;color:#94a3b8">Sin incidencias registradas</td></tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% endblock %}

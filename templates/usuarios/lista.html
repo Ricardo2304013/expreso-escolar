@@ -1,0 +1,190 @@
+{% extends 'base.html' %}
+{% block title %}Usuarios - Expreso Escolar{% endblock %}
+{% block page_title %}Gestión de Usuarios{% endblock %}
+
+{% block topbar_actions %}
+<a href="{% url 'crear_usuario' %}" class="btn btn-primary btn-sm">+ Nuevo Usuario</a>
+{% endblock %}
+
+{% block content %}
+
+<!-- ── ADMINISTRADORES ───────────────────────── -->
+<div class="card">
+  <div class="card-header">
+    <span class="card-title">👑 Administradores</span>
+    <span class="badge badge-purple">{{ admins.count }}</span>
+  </div>
+  <div class="table-responsive">
+    <table>
+      <thead>
+        <tr>
+          <th>Nombre</th>
+          <th>Correo</th>
+          <th>Estado</th>
+          <th style="width:120px; text-align:center">Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for u in admins %}
+        <tr>
+          <td><strong>{{ u.get_full_name|default:u.username }}</strong></td>
+          <td>{{ u.email }}</td>
+          <td>
+            {% if u.is_active %}
+              <span class="badge badge-green">Activo</span>
+            {% else %}
+              <span class="badge badge-gray">Inactivo</span>
+            {% endif %}
+          </td>
+          <td>
+            <td class="acciones-td">
+              <a href="{% url 'editar_usuario' u.pk %}" class="btn btn-outline btn-sm">✏️</a>
+              {% if u != request.user %}
+              <form method="post" action="{% url 'eliminar_usuario' u.pk %}">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-danger btn-sm"
+                  onclick="return confirm('¿Eliminar a {{ u.get_full_name }}?')">🗑️</button>
+              </form>
+              {% endif %}
+            </td>
+          </td>
+        </tr>
+      {% empty %}
+        <tr>
+          <td colspan="4" style="text-align:center; color:#94a3b8; padding:1.5rem">Sin administradores.</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ── TRANSPORTISTAS ────────────────────────── -->
+<div class="card">
+  <div class="card-header">
+    <span class="card-title">🚌 Transportistas</span>
+    <span class="badge badge-blue">{{ transportistas.count }}</span>
+  </div>
+  <div class="table-responsive">
+    <table>
+      <thead>
+        <tr>
+          <th>Nombre</th>
+          <th>Correo</th>
+          <th>Teléfono</th>
+          <th>Expreso Asignado</th>
+          <th>Estado</th>
+          <th style="width:120px; text-align:center">Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for u in transportistas %}
+        <tr>
+          <td><strong>{{ u.get_full_name|default:u.username }}</strong></td>
+          <td>{{ u.email }}</td>
+          <td>
+            {% if u.telefono %}
+              <a href="tel:{{ u.telefono }}" style="color:var(--primary); font-weight:600">{{ u.telefono }}</a>
+            {% else %}
+              <span class="text-muted">—</span>
+            {% endif %}
+          </td>
+          <td>
+            {% for exp in u.expresos.all %}
+              <span class="badge badge-blue">{{ exp.nombre }}</span>
+            {% empty %}
+              <span class="text-muted">Sin expreso</span>
+            {% endfor %}
+          </td>
+          <td>
+            {% if u.is_active %}
+              <span class="badge badge-green">Activo</span>
+            {% else %}
+              <span class="badge badge-gray">Inactivo</span>
+            {% endif %}
+          </td>
+          <td>
+            <div style="display:flex; gap:0.4rem; justify-content:center; align-items:center; flex-wrap:nowrap">
+              <a href="{% url 'editar_usuario' u.pk %}" class="btn btn-outline btn-sm">✏️</a>
+              <form method="post" action="{% url 'eliminar_usuario' u.pk %}" style="margin:0">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-danger btn-sm"
+                  onclick="return confirm('¿Eliminar a {{ u.get_full_name }}?')">🗑️</button>
+              </form>
+            </div>
+          </td>
+        </tr>
+      {% empty %}
+        <tr>
+          <td colspan="6" style="text-align:center; color:#94a3b8; padding:1.5rem">Sin transportistas.</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ── PADRES DE FAMILIA ──────────────────────── -->
+<div class="card">
+  <div class="card-header">
+    <span class="card-title">👨‍👩‍👦 Padres de Familia</span>
+    <span class="badge badge-green">{{ padres.count }}</span>
+  </div>
+  <div class="table-responsive">
+    <table>
+      <thead>
+        <tr>
+          <th>Nombre</th>
+          <th>Correo</th>
+          <th>Cédula</th>
+          <th>Teléfono</th>
+          <th>Estudiantes</th>
+          <th>Estado</th>
+          <th style="width:120px; text-align:center">Acciones</th>
+        </tr>
+      </thead>
+      <tbody>
+      {% for u in padres %}
+        <tr>
+          <td><strong>{{ u.get_full_name|default:u.username }}</strong></td>
+          <td>{{ u.email }}</td>
+          <td>{{ u.padre_perfil.cedula|default:"—" }}</td>
+          <td>{{ u.padre_perfil.telefono|default:"—" }}</td>
+          <td>
+            {% with u.padre_perfil.estudiantes.count as total %}
+              {% if total %}
+                <span class="badge badge-blue">{{ total }} estudiante{{ total|pluralize:"s" }}</span>
+              {% else %}
+                <span class="text-muted">Sin estudiantes</span>
+              {% endif %}
+            {% endwith %}
+          </td>
+          <td>
+            {% if u.is_active %}
+              <span class="badge badge-green">Activo</span>
+            {% else %}
+              <span class="badge badge-gray">Inactivo</span>
+            {% endif %}
+          </td>
+          <td>
+            <div style="display:flex; gap:0.4rem; justify-content:center; align-items:center; flex-wrap:nowrap">
+              <a href="{% url 'editar_usuario' u.pk %}" class="btn btn-outline btn-sm">✏️</a>
+              <form method="post" action="{% url 'eliminar_usuario' u.pk %}" style="margin:0">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-danger btn-sm"
+                  onclick="return confirm('¿Eliminar a {{ u.get_full_name }}?')">🗑️</button>
+              </form>
+            </div>
+          </td>
+        </tr>
+      {% empty %}
+        <tr>
+          <td colspan="7" style="text-align:center; color:#94a3b8; padding:1.5rem">Sin padres registrados.</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% endblock %}

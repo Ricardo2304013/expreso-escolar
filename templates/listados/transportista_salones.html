@@ -1,0 +1,63 @@
+{% extends 'base.html' %}
+{% block title %}Mis Salones{% endblock %}
+{% block page_title %}Mis Estudiantes por Salón{% endblock %}
+{% block breadcrumb %}Listados / Mis Salones{% endblock %}
+
+{% block content %}
+<div class="stats-grid" style="margin-bottom:1.5rem">
+  <div class="stat-card">
+    <div class="stat-icon blue">🚌</div>
+    <div><div class="stat-value">{{ expreso.nombre }}</div><div class="stat-label">{{ expreso.placa }}</div></div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon green">👨‍🎓</div>
+    <div><div class="stat-value">{{ total_estudiantes }}</div><div class="stat-label">Total Estudiantes</div></div>
+  </div>
+  <div class="stat-card">
+    <div class="stat-icon purple">🏫</div>
+    <div><div class="stat-value">{{ salones|length }}</div><div class="stat-label">Salones</div></div>
+  </div>
+</div>
+
+<div class="flex justify-between items-center" style="margin-bottom:1rem">
+  <p class="text-muted">Tus estudiantes organizados por salón.</p>
+  <a href="{% url 'descargar_excel_transportista' %}" class="btn btn-success btn-sm">⬇️ Descargar Mi Excel</a>
+</div>
+
+{% for salon in salones %}
+<div class="card">
+  <div class="card-header">
+    <span class="card-title">🏫 {{ salon.nombre }}</span>
+    <span class="badge badge-blue">{{ salon.total }} alumno{{ salon.total|pluralize:"s" }}</span>
+  </div>
+  <div class="table-responsive">
+    <table>
+      <thead>
+        <tr><th>#</th><th>Apellido</th><th>Nombre</th><th>Representante</th><th>Teléfono</th><th>Dirección</th></tr>
+      </thead>
+      <tbody>
+      {% for est in salon.estudiantes %}
+      <tr>
+        <td class="text-muted">{{ forloop.counter }}</td>
+        <td><strong>{{ est.apellido }}</strong></td>
+        <td>{{ est.nombre }}</td>
+        <td>{{ est.padre.usuario.get_full_name }}</td>
+        <td>
+          <a href="tel:{{ est.padre.telefono }}" style="color:var(--primary)">{{ est.padre.telefono }}</a>
+        </td>
+        <td>{{ est.direccion }}</td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% empty %}
+<div class="card">
+  <div class="empty-state">
+    <div class="icon">🏫</div>
+    <p>No tienes estudiantes activos en tu expreso.</p>
+  </div>
+</div>
+{% endfor %}
+{% endblock %}

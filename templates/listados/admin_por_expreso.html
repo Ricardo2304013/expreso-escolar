@@ -1,0 +1,296 @@
+{% extends 'base.html' %}
+{% block title %}Listado por Expreso{% endblock %}
+{% block page_title %}Listado por Expreso{% endblock %}
+{% block breadcrumb %}Listados / Por Expreso{% endblock %}
+
+{% block content %}
+
+<!-- TABS -->
+<div style="margin-bottom:1.5rem">
+  <div style="display:flex; gap:0.5rem; flex-wrap:wrap; border-bottom:2px solid #e2e8f0; padding-bottom:0">
+    <button onclick="mostrarTab('todos', this)"
+      id="tab-btn-todos"
+      style="padding:0.65rem 1.25rem; border:none; background:none; cursor:pointer;
+             font-size:0.9rem; font-weight:600; color:#64748b;
+             border-bottom:3px solid transparent; margin-bottom:-2px; transition:all 0.2s">
+      📋 Todos los Expresos
+    </button>
+    {% for d in expresos_data %}
+    <button onclick="mostrarTab('exp-{{ d.exp.pk }}', this)"
+      id="tab-btn-exp-{{ d.exp.pk }}"
+      style="padding:0.65rem 1.25rem; border:none; background:none; cursor:pointer;
+             font-size:0.9rem; font-weight:600; color:#64748b;
+             border-bottom:3px solid transparent; margin-bottom:-2px; transition:all 0.2s">
+      🚌 {{ d.exp.nombre }}
+      <span style="background:#dbeafe; color:#1e40af; padding:2px 8px;
+                   border-radius:20px; font-size:0.75rem; margin-left:4px">
+        {{ d.total }}
+      </span>
+    </button>
+    {% endfor %}
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════
+     TAB: TODOS LOS EXPRESOS
+     ══════════════════════════════════════════════ -->
+<div id="tab-todos">
+
+  <!-- UN SOLO BOTÓN DE DESCARGA -->
+  <div style="display:flex; justify-content:flex-end; margin-bottom:1rem">
+    <a href="{% url 'descargar_excel' %}" class="btn btn-success">
+      ⬇️ Descargar Excel Completo
+    </a>
+  </div>
+
+  {% for d in expresos_data %}
+  <div class="card">
+    <div class="card-header">
+      <div>
+        <span class="card-title">🚌 {{ d.exp.nombre }} — {{ d.exp.placa }}</span>
+        {% if d.exp.transportista %}
+        <span class="text-muted text-sm" style="margin-left:0.75rem">
+          👤 {{ d.exp.transportista.get_full_name }}
+          {% if d.exp.transportista.telefono %} — 📞 {{ d.exp.transportista.telefono }}{% endif %}
+        </span>
+        {% endif %}
+      </div>
+      <span class="badge badge-blue">{{ d.total }} estudiantes</span>
+    </div>
+
+    {% for curso in d.cursos %}
+      {% for salon in curso.paralelos %}
+      <div style="margin-bottom:1rem">
+        <div style="background:#f1f5f9; border-radius:8px; padding:0.5rem 1rem;
+                    margin-bottom:0.5rem; display:flex; justify-content:space-between; align-items:center">
+          <strong>🏫 {{ curso.curso }} "{{ salon.paralelo }}"</strong>
+          <span class="badge badge-gray">{{ salon.estudiantes|length }} alumno{{ salon.estudiantes|length|pluralize:"s" }}</span>
+        </div>
+        <div class="table-responsive">
+          <table>
+            <thead>
+              <tr><th>#</th><th>Apellido</th><th>Nombre</th><th>Representante</th><th>Teléfono</th><th>Dirección</th></tr>
+            </thead>
+            <tbody>
+            {% for est in salon.estudiantes %}
+            <tr>
+              <td class="text-muted">{{ forloop.counter }}</td>
+              <td><strong>{{ est.apellido }}</strong></td>
+              <td>{{ est.nombre }}</td>
+              <td>{{ est.padre.usuario.get_full_name }}</td>
+              <td>{{ est.padre.telefono }}</td>
+              <td>{{ est.direccion }}</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      {% endfor %}
+    {% endfor %}
+
+    {% if not d.cursos %}
+    <div class="empty-state"><div class="icon">🎒</div><p>Sin estudiantes activos.</p></div>
+    {% endif %}
+
+  </div>
+  {% empty %}
+  <div class="card">
+    <div class="empty-state"><div class="icon">🚌</div><p>No hay expresos con estudiantes activos.</p></div>
+  </div>
+  {% endfor %}
+
+</div>
+
+<!-- ══════════════════════════════════════════════
+     TABS: UNO POR EXPRESO
+     ══════════════════════════════════════════════ -->
+{% for d in expresos_data %}
+<div id="tab-exp-{{ d.exp.pk }}" style="display:none">
+
+  <!-- Info del expreso -->
+  <div style="background:#f8fafc; border-radius:10px; padding:1rem 1.25rem; margin-bottom:1.25rem;
+              display:grid; grid-template-columns:repeat(6, auto); gap:1rem 2rem; align-items:center">
+    <div><span class="text-muted text-sm">Expreso</span><div style="font-weight:700">{{ d.exp.nombre }}</div></div>
+    <div><span class="text-muted text-sm">Placa</span><div style="font-weight:700">{{ d.exp.placa }}</div></div>
+    <div><span class="text-muted text-sm">Transportista</span>
+      <div style="font-weight:700">{{ d.exp.transportista.get_full_name|default:"Sin asignar" }}</div></div>
+    <div><span class="text-muted text-sm">Teléfono</span>
+      <div style="font-weight:700">{{ d.exp.transportista.telefono|default:"—" }}</div></div>
+    <div><span class="text-muted text-sm">Capacidad</span>
+      <div style="font-weight:700">{{ d.exp.capacidad }} cupos</div></div>
+    <div><span class="text-muted text-sm">Estudiantes activos</span>
+      <div style="font-weight:700; color:var(--primary)">{{ d.total }}</div></div>
+  </div>
+
+  <!-- Sub-tabs: Lista / Salones -->
+  <div style="display:flex; gap:0.5rem; border-bottom:2px solid #e2e8f0;
+              margin-bottom:1.25rem; padding-bottom:0">
+    <button onclick="mostrarSubTab('lista-{{ d.exp.pk }}', '{{ d.exp.pk }}', this)"
+      id="sub-btn-lista-{{ d.exp.pk }}"
+      style="padding:0.55rem 1rem; border:none; background:none; cursor:pointer;
+             font-size:0.875rem; font-weight:600; color:#64748b;
+             border-bottom:3px solid transparent; margin-bottom:-2px; transition:all 0.2s">
+      📋 Lista de Estudiantes
+    </button>
+    <button onclick="mostrarSubTab('salones-{{ d.exp.pk }}', '{{ d.exp.pk }}', this)"
+      id="sub-btn-salones-{{ d.exp.pk }}"
+      style="padding:0.55rem 1rem; border:none; background:none; cursor:pointer;
+             font-size:0.875rem; font-weight:600; color:#64748b;
+             border-bottom:3px solid transparent; margin-bottom:-2px; transition:all 0.2s">
+      🏫 Lista por Salones
+    </button>
+  </div>
+
+  <!-- SUB-TAB: LISTA DE ESTUDIANTES -->
+  <div id="sub-lista-{{ d.exp.pk }}">
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">📋 Lista de Estudiantes — {{ d.exp.nombre }}</span>
+        <a href="{% url 'descargar_excel_un_expreso' d.exp.pk %}" class="btn btn-success btn-sm">⬇️ Descargar Excel</a>
+      </div>
+      <div class="table-responsive">
+        <table>
+          <thead>
+            <tr><th>#</th><th>Apellido</th><th>Nombre</th><th>Curso</th><th>Representante</th><th>Teléfono</th><th>Dirección</th></tr>
+          </thead>
+          <tbody>
+          {% with contador=0 %}
+          {% for curso in d.cursos %}
+            {% for salon in curso.paralelos %}
+              {% for est in salon.estudiantes %}
+              <tr>
+                <td class="text-muted">{{ forloop.counter }}</td>
+                <td><strong>{{ est.apellido }}</strong></td>
+                <td>{{ est.nombre }}</td>
+                <td>{{ curso.curso }} "{{ salon.paralelo }}"</td>
+                <td>{{ est.padre.usuario.get_full_name }}</td>
+                <td>{{ est.padre.telefono }}</td>
+                <td>{{ est.direccion }}</td>
+              </tr>
+              {% endfor %}
+            {% endfor %}
+          {% endfor %}
+          {% endwith %}
+          {% if not d.cursos %}
+          <tr><td colspan="7" style="text-align:center; padding:2rem; color:#94a3b8">Sin estudiantes activos.</td></tr>
+          {% endif %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- SUB-TAB: LISTA POR SALONES -->
+  <div id="sub-salones-{{ d.exp.pk }}" style="display:none">
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">🏫 Lista por Salones — {{ d.exp.nombre }}</span>
+        <a href="{% url 'descargar_excel_salones_expreso' d.exp.pk %}" class="btn btn-success btn-sm">⬇️ Descargar Excel</a>
+      </div>
+
+      {% for curso in d.cursos %}
+        {% for salon in curso.paralelos %}
+        <div style="margin-bottom:1.25rem">
+          <div style="background:#dbeafe; border-radius:8px; padding:0.6rem 1rem;
+                      margin-bottom:0.5rem; display:flex; justify-content:space-between; align-items:center">
+            <strong style="color:#1e40af">🏫 {{ curso.curso }} "{{ salon.paralelo }}"</strong>
+            <span class="badge badge-blue">{{ salon.estudiantes|length }} alumno{{ salon.estudiantes|length|pluralize:"s" }}</span>
+          </div>
+          <div class="table-responsive">
+            <table>
+              <thead>
+                <tr><th>#</th><th>Apellido</th><th>Nombre</th><th>Representante</th><th>Teléfono</th><th>Dirección</th></tr>
+              </thead>
+              <tbody>
+              {% for est in salon.estudiantes %}
+              <tr>
+                <td class="text-muted">{{ forloop.counter }}</td>
+                <td><strong>{{ est.apellido }}</strong></td>
+                <td>{{ est.nombre }}</td>
+                <td>{{ est.padre.usuario.get_full_name }}</td>
+                <td>{{ est.padre.telefono }}</td>
+                <td>{{ est.direccion }}</td>
+              </tr>
+              {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        {% endfor %}
+      {% endfor %}
+
+      {% if not d.cursos %}
+      <div class="empty-state"><div class="icon">🏫</div><p>Sin salones registrados.</p></div>
+      {% endif %}
+
+    </div>
+  </div>
+
+</div>
+{% endfor %}
+
+<!-- JAVASCRIPT -->
+<script>
+  const TAB_ACTIVO_COLOR = '#1a56db';
+
+  function mostrarTab(id, btnActivo) {
+    document.getElementById('tab-todos').style.display = 'none';
+    document.querySelectorAll('[id^="tab-exp-"]').forEach(el => el.style.display = 'none');
+    document.getElementById('tab-' + id).style.display = 'block';
+
+    document.querySelectorAll('[id^="tab-btn-"]').forEach(btn => {
+      btn.style.color = '#64748b';
+      btn.style.borderBottomColor = 'transparent';
+      btn.style.background = 'none';
+    });
+    btnActivo.style.color = TAB_ACTIVO_COLOR;
+    btnActivo.style.borderBottomColor = TAB_ACTIVO_COLOR;
+    btnActivo.style.background = '#eff6ff';
+    btnActivo.style.borderRadius = '8px 8px 0 0';
+
+    // Activar siempre el sub-tab Lista al entrar a un expreso
+    if (id !== 'todos') {
+      const expPk = id.replace('exp-', '');
+      const btnLista = document.getElementById('sub-btn-lista-' + expPk);
+      if (btnLista) activarSubBtn(btnLista, expPk);
+      const subLista = document.getElementById('sub-lista-' + expPk);
+      const subSalones = document.getElementById('sub-salones-' + expPk);
+      if (subLista) subLista.style.display = 'block';
+      if (subSalones) subSalones.style.display = 'none';
+    }
+  }
+
+  function mostrarSubTab(subId, expPk, btnActivo) {
+    document.getElementById('sub-lista-' + expPk).style.display = 'none';
+    document.getElementById('sub-salones-' + expPk).style.display = 'none';
+    document.getElementById('sub-' + subId).style.display = 'block';
+    activarSubBtn(btnActivo, expPk);
+  }
+
+  function activarSubBtn(btnActivo, expPk) {
+    const btnLista   = document.getElementById('sub-btn-lista-'   + expPk);
+    const btnSalones = document.getElementById('sub-btn-salones-' + expPk);
+    [btnLista, btnSalones].forEach(btn => {
+      if (!btn) return;
+      btn.style.color = '#64748b';
+      btn.style.borderBottomColor = 'transparent';
+      btn.style.background = 'none';
+    });
+    btnActivo.style.color = TAB_ACTIVO_COLOR;
+    btnActivo.style.borderBottomColor = TAB_ACTIVO_COLOR;
+    btnActivo.style.background = '#eff6ff';
+    btnActivo.style.borderRadius = '8px 8px 0 0';
+  }
+
+  // Activar tab inicial desde URL
+  const tabInicial = '{{ tab_activo|default:"todos" }}';
+  const btnInicial = document.getElementById('tab-btn-' + tabInicial);
+  if (btnInicial) {
+    mostrarTab(tabInicial, btnInicial);
+  } else {
+    mostrarTab('todos', document.getElementById('tab-btn-todos'));
+  }
+</script>
+
+{% endblock %}

@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Expreso Escolar{% endblock %}</title>
+  {% load static %}
+  <link rel="stylesheet" href="{% static 'css/style.css' %}">
+</head>
+<body>
+<div class="app-layout">
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <div class="logo">
+        <span>🚌</span>
+        <div>
+          <h2>Expreso Escolar</h2>
+          <p>Gestión de Transporte</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="sidebar-user">
+      <div class="user-avatar">{{ request.user.first_name|first|upper }}{{ request.user.last_name|first|upper }}</div>
+      <div class="user-name">{{ request.user.get_full_name }}</div>
+      <span class="user-role">{{ request.user.get_rol_display }}</span>
+    </div>
+
+    <nav class="sidebar-nav">
+      {% if request.user.rol == 'admin' %}
+      <div class="nav-section">
+        <div class="nav-section-title">Principal</div>
+        <a href="{% url 'dashboard' %}" class="nav-link"><span class="nav-icon">📊</span> Dashboard</a>
+        <a href="{% url 'lista_estudiantes' %}" class="nav-link"><span class="nav-icon">🎒</span> Estudiantes</a>
+        <a href="{% url 'lista_expresos' %}" class="nav-link"><span class="nav-icon">🚌</span> Expresos</a>
+        <a href="{% url 'crear_asignacion' %}" class="nav-link"><span class="nav-icon">🔗</span> Asignar Estudiante</a>
+        <a href="{% url 'lista_incidencias' %}" class="nav-link"><span class="nav-icon">⚠️</span> Incidencias</a>
+        <a href="{% url 'lista_usuarios' %}" class="nav-link"><span class="nav-icon">👥</span> Usuarios</a>
+        <a href="{% url 'listado_por_expreso' %}" class="nav-link"><span class="nav-icon">📋</span> Listado por Expreso</a>
+        <a href="{% url 'listado_por_salon' %}" class="nav-link"><span class="nav-icon">🏫</span> Listado por Salón</a>
+      </div>
+      {% elif request.user.rol == 'transportista' %}
+      <div class="nav-section">
+        <div class="nav-section-title">Mi Panel</div>
+        <a href="{% url 'dashboard' %}" class="nav-link"><span class="nav-icon">📊</span> Mi Dashboard</a>
+        <a href="{% url 'listado_transportista_salones' %}" class="nav-link"><span class="nav-icon">🏫</span> Mis Salones</a>
+        <a href="{% url 'reportar_incidencia' %}" class="nav-link"><span class="nav-icon">⚠️</span> Reportar Incidencia</a>
+      </div>
+      {% elif request.user.rol == 'padre' %}
+      <div class="nav-section">
+        <div class="nav-section-title">Mi Panel</div>
+        <a href="{% url 'dashboard' %}" class="nav-link"><span class="nav-icon">🏠</span> Mi Panel</a>
+        <a href="{% url 'registrar_estudiante' %}" class="nav-link"><span class="nav-icon">➕</span> Registrar Estudiante</a>
+      </div>
+      {% endif %}
+    </nav>
+
+    <div class="sidebar-footer">
+      <a href="{% url 'logout' %}" class="nav-link"><span class="nav-icon">🚪</span> Cerrar Sesión</a>
+    </div>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main-content">
+    <div class="topbar">
+      <div>
+        <h1>{% block page_title %}Panel{% endblock %}</h1>
+        <div class="breadcrumb">{% block breadcrumb %}Inicio{% endblock %}</div>
+      </div>
+      <div>{% block topbar_actions %}{% endblock %}</div>
+    </div>
+
+    <div class="page-content">
+      {% if messages %}
+      <div class="messages-container">
+        {% for msg in messages %}
+        <div class="alert alert-{{ msg.tags|default:'info' }}">
+          {% if msg.tags == 'success' %}✅{% elif msg.tags == 'error' %}❌{% elif msg.tags == 'warning' %}⚠️{% else %}ℹ️{% endif %}
+          {{ msg }}
+        </div>
+        {% endfor %}
+      </div>
+      {% endif %}
+      {% block content %}{% endblock %}
+    </div>
+  </main>
+</div>
+
+</body>
+</html>
