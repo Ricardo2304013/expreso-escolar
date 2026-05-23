@@ -14,7 +14,7 @@ pip install -r requirements.txt
 
 ### 2. Ejecutar el servidor
 ```bash
-python manage.py runserver
+py manage.py runserver
 ```
 
 ### 3. Abrir en el navegador
