@@ -1,7 +1,6 @@
 from django.contrib.auth.models import AbstractUser
 from django.db import models
 
-
 class Usuario(AbstractUser):
     ROL_CHOICES = [
         ('admin', 'Administrador'),
@@ -116,9 +115,9 @@ class Estudiante(models.Model):
     expreso = models.ForeignKey(Expreso, on_delete=models.SET_NULL, null=True, blank=True, related_name='estudiantes')
     nombre = models.CharField(max_length=100)
     apellido = models.CharField(max_length=100)
-    curso = models.CharField(max_length=50, choices=CURSO_CHOICES)          # ← ahora tiene choices
+    curso = models.CharField(max_length=50, choices=CURSO_CHOICES)          
     paralelo = models.CharField(max_length=5)
-    direccion = models.CharField(max_length=100, choices=DIRECCION_CHOICES, default='Mucho Lote') # ← reemplaza observacion
+    direccion = models.CharField(max_length=100, choices=DIRECCION_CHOICES, default='Mucho Lote') 
     estado = models.CharField(max_length=20, choices=ESTADO_CHOICES, default='pendiente')
     created_at = models.DateTimeField(auto_now_add=True)
 
