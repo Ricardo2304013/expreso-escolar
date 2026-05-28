@@ -14,7 +14,7 @@ pip install -r requirements.txt
 
 ### 2. Ejecutar el servidor
 ```bash
-python manage.py runserver
+py manage.py runserver
 ```
 
 ### 3. Abrir en el navegador
@@ -28,9 +28,9 @@ http://127.0.0.1:8000
 
 | Rol | Correo | Contraseña |
 |-----|--------|------------|
-| 🔑 Administrador | admin@expreso.com | admin1234 |
-| 🚌 Transportista | trans@expreso.com | trans1234 |
-| 👨‍👩‍👦 Padre | padre@expreso.com | padre1234 |
+| 🔑 Administrador | admin@expreso.com | 12345678 |
+| 🚌 Transportista | trans@expreso.com | 12345678 |
+| 👨‍👩‍👦 Padre | padre@expreso.com | 12345678 |
 
 ---
 
