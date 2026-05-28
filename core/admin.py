@@ -1,3 +1,4 @@
+from .models import AuditoriaLogin
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
 from .models import Usuario, Padre, Expreso, Estudiante, Asignacion, Incidencia
@@ -43,3 +44,18 @@ class AsignacionAdmin(admin.ModelAdmin):
 class IncidenciaAdmin(admin.ModelAdmin):
     list_display = ['tipo', 'expreso', 'reportado_por', 'fecha']
     list_filter = ['tipo']
+
+@admin.register(AuditoriaLogin)
+class AuditoriaLoginAdmin(admin.ModelAdmin):
+    list_display  = ['fecha', 'accion', 'email_intento',
+                     'usuario', 'ip', 'exitoso']
+    list_filter   = ['accion', 'exitoso']
+    search_fields = ['email_intento', 'ip']
+    readonly_fields = ['usuario', 'email_intento', 'accion',
+                       'ip', 'navegador', 'fecha', 'exitoso']
+
+    def has_add_permission(self, request):
+        return False  # nadie puede crear registros manuales
+
+    def has_delete_permission(self, request, obj=None):
+        return request.user.is_superuser  # solo superusuario elimina

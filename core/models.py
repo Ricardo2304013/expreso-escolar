@@ -190,3 +190,32 @@ class Incidencia(models.Model):
         verbose_name = 'Incidencia'
         verbose_name_plural = 'Incidencias'
         ordering = ['-fecha']
+
+class AuditoriaLogin(models.Model):
+    ACCION_CHOICES = [
+        ('login_exitoso',  'Login Exitoso'),
+        ('login_fallido',  'Login Fallido'),
+        ('logout',         'Cierre de Sesion'),
+    ]
+    usuario      = models.ForeignKey(
+        Usuario, on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='auditorias'
+    )
+    email_intento = models.CharField(
+        max_length=254, blank=True,
+        help_text='Correo que se intento usar'
+    )
+    accion       = models.CharField(max_length=20, choices=ACCION_CHOICES)
+    ip           = models.GenericIPAddressField(null=True, blank=True)
+    navegador    = models.CharField(max_length=300, blank=True)
+    fecha        = models.DateTimeField(auto_now_add=True)
+    exitoso      = models.BooleanField(default=False)
+
+    def __str__(self):
+        return f"{self.accion} | {self.email_intento} | {self.fecha.strftime('%d/%m/%Y %H:%M')}"
+
+    class Meta:
+        verbose_name = 'Auditoria de Login'
+        verbose_name_plural = 'Auditorias de Login'
+        ordering = ['-fecha']

@@ -1,3 +1,4 @@
+from .models import Usuario, Padre, Expreso, Estudiante, Asignacion, Incidencia, AuditoriaLogin
 from .utils_excel import generar_excel_completo
 import csv
 from django.http import HttpResponse
@@ -13,17 +14,59 @@ from .forms import (LoginForm, RegistroPadreForm, EstudianteForm, ExpresoForm,
                     AsignacionForm, AceptarAsignacionForm, IncidenciaForm, UsuarioAdminForm)
 from .decorators import solo_admin, solo_transportista, solo_padre, admin_o_transportista
 
+def obtener_ip(request):
+    x_forwarded = request.META.get('HTTP_X_FORWARDED_FOR')
+    if x_forwarded:
+        return x_forwarded.split(',')[0].strip()
+    return request.META.get('REMOTE_ADDR', '0.0.0.0')
 
 # ── AUTENTICACIÓN ──────────────────────────────────────────
 
 def vista_login(request):
     if request.user.is_authenticated:
         return redirect('dashboard')
+
     form = LoginForm(request, data=request.POST or None)
-    if request.method == 'POST' and form.is_valid():
-        user = form.get_user()
-        login(request, user)
-        return redirect('dashboard')
+
+    if request.method == 'POST':
+        email_intento = request.POST.get('username', '')
+        ip            = obtener_ip(request)
+        navegador     = request.META.get('HTTP_USER_AGENT', '')[:300]
+
+        if form.is_valid():
+            user = form.get_user()
+            login(request, user)
+
+            # ── Registrar login exitoso ──────────────
+            AuditoriaLogin.objects.create(
+                usuario       = user,
+                email_intento = email_intento,
+                accion        = 'login_exitoso',
+                ip            = ip,
+                navegador     = navegador,
+                exitoso       = True,
+            )
+            messages.success(request,
+                f'Bienvenido/a {user.first_name}.')
+            return redirect('dashboard')
+        else:
+            # ── Registrar login fallido ──────────────
+            # Intentar encontrar el usuario por email
+            try:
+                user_fallido = Usuario.objects.get(
+                    username=email_intento)
+            except Usuario.DoesNotExist:
+                user_fallido = None
+
+            AuditoriaLogin.objects.create(
+                usuario       = user_fallido,
+                email_intento = email_intento,
+                accion        = 'login_fallido',
+                ip            = ip,
+                navegador     = navegador,
+                exitoso       = False,
+            )
+
     return render(request, 'auth/login.html', {'form': form})
 
 
@@ -46,6 +89,15 @@ def vista_registro(request):
 
 
 def vista_logout(request):
+    if request.user.is_authenticated:
+        AuditoriaLogin.objects.create(
+            usuario       = request.user,
+            email_intento = request.user.email,
+            accion        = 'logout',
+            ip            = obtener_ip(request),
+            navegador     = request.META.get('HTTP_USER_AGENT', '')[:300],
+            exitoso       = True,
+        )
     logout(request)
     return redirect('login')
 
@@ -614,3 +666,29 @@ def descargar_excel_un_expreso(request, expreso_id):
 def descargar_excel_salones_expreso(request, expreso_id):
     expreso = get_object_or_404(Expreso, pk=expreso_id)
     return generar_excel_salones_expreso(expreso)
+
+@login_required
+@solo_admin
+def lista_auditoria(request):
+    busqueda = request.GET.get('q', '')
+    filtro   = request.GET.get('accion', '')
+
+    registros = AuditoriaLogin.objects.select_related('usuario')
+
+    if busqueda:
+        registros = registros.filter(
+            Q(email_intento__icontains=busqueda) |
+            Q(ip__icontains=busqueda)
+        )
+    if filtro:
+        registros = registros.filter(accion=filtro)
+
+    paginator = Paginator(registros, 20)
+    page      = request.GET.get('page', 1)
+
+    return render(request, 'auditoria/lista.html', {
+        'registros': paginator.get_page(page),
+        'total':     paginator.count,
+        'busqueda':  busqueda,
+        'filtro':    filtro,
+    })

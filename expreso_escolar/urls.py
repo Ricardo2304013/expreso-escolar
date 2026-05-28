@@ -39,5 +39,6 @@ urlpatterns = [
     path('listados/descargar/excel/', views.descargar_excel_completo, name='descargar_excel'),
     path('listados/descargar/mi-excel/', views.descargar_excel_transportista, name='descargar_excel_transportista'),
     path('listados/descargar/expreso/<int:expreso_id>/excel/', views.descargar_excel_un_expreso, name='descargar_excel_un_expreso'),
-path('listados/descargar/expreso/<int:expreso_id>/salones/', views.descargar_excel_salones_expreso, name='descargar_excel_salones_expreso'),
+    path('listados/descargar/expreso/<int:expreso_id>/salones/', views.descargar_excel_salones_expreso, name='descargar_excel_salones_expreso'),
+    path('auditoria/', views.lista_auditoria, name='lista_auditoria'),
 ]
