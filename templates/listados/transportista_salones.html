@@ -28,7 +28,11 @@
 <div class="card">
   <div class="card-header">
     <span class="card-title">🏫 {{ salon.nombre }}</span>
-    <span class="badge badge-blue">{{ salon.total }} alumno{{ salon.total|pluralize:"s" }}</span>
+    <div style="display:flex; gap:0.5rem; align-items:center">
+      <span class="badge badge-blue">{{ salon.total }} alumno{{ salon.total|pluralize:"s" }}</span>
+      <a href="{% url 'descargar_excel_salon_transportista' expreso.pk %}?curso={{ salon.curso|urlencode }}&paralelo={{ salon.paralelo|urlencode }}"
+          class="btn btn-success btn-sm">⬇️ Excel salón</a>
+    </div>
   </div>
   <div class="table-responsive">
     <table>

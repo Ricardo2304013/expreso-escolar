@@ -183,48 +183,45 @@
 
   <!-- SUB-TAB: LISTA POR SALONES -->
   <div id="sub-salones-{{ d.exp.pk }}" style="display:none">
-    <div class="card">
-      <div class="card-header">
-        <span class="card-title">🏫 Lista por Salones — {{ d.exp.nombre }}</span>
-        <a href="{% url 'descargar_excel_salones_expreso' d.exp.pk %}" class="btn btn-success btn-sm">⬇️ Descargar Excel</a>
-      </div>
 
-      {% for curso in d.cursos %}
-        {% for salon in curso.paralelos %}
-        <div style="margin-bottom:1.25rem">
-          <div style="background:#dbeafe; border-radius:8px; padding:0.6rem 1rem;
-                      margin-bottom:0.5rem; display:flex; justify-content:space-between; align-items:center">
-            <strong style="color:#1e40af">🏫 {{ curso.curso }} "{{ salon.paralelo }}"</strong>
+    {% for curso in d.cursos %}
+      {% for salon in curso.paralelos %}
+      <div style="margin-bottom:1.25rem">
+
+        <!-- Encabezado del salón con su propio botón Excel -->
+        <div style="background:#dbeafe; border-radius:8px; padding:0.6rem 1rem;
+                    margin-bottom:0.5rem; display:flex; justify-content:space-between; align-items:center">
+          <strong style="color:#1e40af">🏫 {{ curso.curso }} "{{ salon.paralelo }}"</strong>
+          <div style="display:flex; gap:0.5rem; align-items:center">
             <span class="badge badge-blue">{{ salon.estudiantes|length }} alumno{{ salon.estudiantes|length|pluralize:"s" }}</span>
-          </div>
-          <div class="table-responsive">
-            <table>
-              <thead>
-                <tr><th>#</th><th>Apellido</th><th>Nombre</th><th>Representante</th><th>Teléfono</th><th>Dirección</th></tr>
-              </thead>
-              <tbody>
-              {% for est in salon.estudiantes %}
-              <tr>
-                <td class="text-muted">{{ forloop.counter }}</td>
-                <td><strong>{{ est.apellido }}</strong></td>
-                <td>{{ est.nombre }}</td>
-                <td>{{ est.padre.usuario.get_full_name }}</td>
-                <td>{{ est.padre.telefono }}</td>
-                <td>{{ est.direccion }}</td>
-              </tr>
-              {% endfor %}
-              </tbody>
-            </table>
+            <a href="{% url 'descargar_excel_salon' d.exp.pk %}?curso={{ curso.curso|urlencode }}&paralelo={{ salon.paralelo|urlencode }}"
+                class="btn btn-success btn-sm">⬇️ Excel salón</a>
           </div>
         </div>
-        {% endfor %}
+
+        <div class="table-responsive">
+          <table>
+            <thead>
+              <tr><th>#</th><th>Apellido</th><th>Nombre</th><th>Representante</th><th>Teléfono</th><th>Dirección</th></tr>
+            </thead>
+            <tbody>
+            {% for est in salon.estudiantes %}
+            <tr>
+              <td class="text-muted">{{ forloop.counter }}</td>
+              <td><strong>{{ est.apellido }}</strong></td>
+              <td>{{ est.nombre }}</td>
+              <td>{{ est.padre.usuario.get_full_name }}</td>
+              <td>{{ est.padre.telefono }}</td>
+              <td>{{ est.direccion }}</td>
+            </tr>
+            {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
       {% endfor %}
+    {% endfor %}
 
-      {% if not d.cursos %}
-      <div class="empty-state"><div class="icon">🏫</div><p>Sin salones registrados.</p></div>
-      {% endif %}
-
-    </div>
   </div>
 
 </div>

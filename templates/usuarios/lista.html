@@ -149,7 +149,15 @@
           <td><strong>{{ u.get_full_name|default:u.username }}</strong></td>
           <td>{{ u.email }}</td>
           <td>{{ u.padre_perfil.cedula|default:"—" }}</td>
-          <td>{{ u.padre_perfil.telefono|default:"—" }}</td>
+          <td>
+            {% if u.padre_perfil.telefono and u.padre_perfil.telefono != "—" %}
+              <a href="tel:{{ u.padre_perfil.telefono }}" style="color:var(--primary); font-weight:600">
+                {{ u.padre_perfil.telefono }}
+              </a>
+            {% else %}
+              <span class="text-muted">—</span>
+            {% endif %}
+          </td>
           <td>
             {% with u.padre_perfil.estudiantes.count as total %}
               {% if total %}

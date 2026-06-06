@@ -1,5 +1,7 @@
 from .models import Usuario, Padre, Expreso, Estudiante, Asignacion, Incidencia, AuditoriaLogin
-from .utils_excel import generar_excel_completo
+from .utils_excel import (generar_excel_completo, generar_excel_transportista,
+                           generar_excel_un_expreso, generar_excel_salones_expreso,
+                           generar_excel_un_salon)
 import csv
 from django.http import HttpResponse
 from django.core.paginator import Paginator
@@ -692,3 +694,20 @@ def lista_auditoria(request):
         'busqueda':  busqueda,
         'filtro':    filtro,
     })
+
+@login_required
+@solo_admin
+def descargar_excel_salon(request, expreso_id):
+    expreso = get_object_or_404(Expreso, pk=expreso_id)
+    curso   = request.GET.get('curso', '')
+    paralelo = request.GET.get('paralelo', '')
+    return generar_excel_un_salon(expreso, curso, paralelo)
+
+
+@login_required
+@solo_transportista
+def descargar_excel_salon_transportista(request, expreso_id):
+    expreso = get_object_or_404(Expreso, pk=expreso_id, transportista=request.user)
+    curso    = request.GET.get('curso', '')
+    paralelo = request.GET.get('paralelo', '')
+    return generar_excel_un_salon(expreso, curso, paralelo)

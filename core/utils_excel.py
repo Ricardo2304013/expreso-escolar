@@ -1,5 +1,5 @@
 # Archivo: core/utils_excel.py
-
+from django.apps import apps
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
@@ -511,5 +511,85 @@ def generar_excel_salones_expreso(expreso, institucion="Unidad Educativa Expreso
     )
     fecha = datetime.date.today()
     response['Content-Disposition'] = f'attachment; filename="Salones_{expreso.placa}_{fecha}.xlsx"'
+    wb.save(response)
+    return response
+
+def generar_excel_un_salon(expreso, curso, paralelo, institucion="Unidad Educativa Expreso Escolar"):
+    wb = Workbook()
+    wb.remove(wb.active)
+
+    Estudiante = apps.get_model('core', 'Estudiante')
+    estudiantes = list(
+        Estudiante.objects.filter(
+            expreso=expreso,
+            estado='activo',
+            curso=curso,
+            paralelo=paralelo
+        ).select_related('padre__usuario')
+        .order_by('apellido')
+    )
+
+    ws = wb.create_sheet(f"{curso} {paralelo}"[:31])
+    ws.sheet_view.showGridLines = False
+
+    anchos = [5, 10, 30, 22, 15, 22, 12]
+    for i, a in enumerate(anchos, 1):
+        ws.column_dimensions[get_column_letter(i)].width = a
+
+    _titulo(ws, f"LISTA DE ESTUDIANTES - {curso} '{paralelo}' - {expreso.nombre.upper()}", 7)
+
+    trans_nombre = expreso.transportista.get_full_name() if expreso.transportista else '—'
+    trans_tel    = expreso.transportista.telefono if expreso.transportista and expreso.transportista.telefono else '—'
+
+    ws.row_dimensions[2].height = 18
+    ws.merge_cells('A2:C2'); ws.merge_cells('D2:E2')
+    ws.merge_cells('F2:F2'); ws.merge_cells('G2:G2')
+    for col_l, val, es_lab in [('A','EXPRESO:',True),('D',expreso.nombre,False),('F','PLACA:',True),('G',expreso.placa,False)]:
+        c = ws[f'{col_l}2']; c.value = val
+        c.font = Font(bold=es_lab, size=10, name="Arial", color=AZUL_OSCURO if es_lab else "000000")
+        c.fill = _fill(AZUL_CLARO if es_lab else BLANCO); c.border = _borde(); c.alignment = _alinear('right' if es_lab else 'left','center')
+
+    ws.row_dimensions[3].height = 18
+    ws.merge_cells('A3:C3'); ws.merge_cells('D3:E3')
+    ws.merge_cells('F3:F3'); ws.merge_cells('G3:G3')
+    for col_l, val, es_lab in [('A','TRANSPORTISTA:',True),('D',trans_nombre,False),('F','TELEFONO:',True),('G',trans_tel,False)]:
+        c = ws[f'{col_l}3']; c.value = val
+        c.font = Font(bold=es_lab, size=10, name="Arial", color=AZUL_OSCURO if es_lab else "000000")
+        c.fill = _fill(AZUL_CLARO if es_lab else BLANCO); c.border = _borde(); c.alignment = _alinear('right' if es_lab else 'left','center')
+
+    headers = ['N°', 'CÓDIGO', 'APELLIDOS Y NOMBRES', 'REPRESENTANTE', 'TELÉFONO', 'DIRECCIÓN', 'ESTADO']
+    ws.row_dimensions[4].height = 22
+    for i, h in enumerate(headers, 1):
+        _header_cell(ws, 4, i, h)
+
+    for idx, est in enumerate(estudiantes, 1):
+        fila = idx + 4
+        bg = BLANCO if idx % 2 == 0 else AZUL_MUY_CLARO
+        ws.row_dimensions[fila].height = 18
+        vals = [idx, f"EST{idx:03d}",
+                f"{est.apellido}, {est.nombre}",
+                est.padre.usuario.get_full_name(),
+                est.padre.telefono,
+                est.direccion,
+                est.get_estado_display()]
+        for col, val in enumerate(vals, 1):
+            _data_cell(ws, fila, col, val, bg, 'center' if col in [1, 7] else 'left')
+
+    fila_t = len(estudiantes) + 6
+    ws.merge_cells(f'A{fila_t}:F{fila_t}')
+    c = ws[f'A{fila_t}']
+    c.value = f"TOTAL ESTUDIANTES - {curso} '{paralelo}':"
+    c.font = Font(bold=True, size=10, name="Arial", color=BLANCO)
+    c.fill = _fill(AZUL_MEDIO); c.alignment = _alinear('right','center'); c.border = _borde()
+    c = ws.cell(row=fila_t, column=7, value=len(estudiantes))
+    c.font = Font(bold=True, size=14, name="Arial", color=BLANCO)
+    c.fill = _fill(AZUL_OSCURO); c.alignment = _alinear('center','center'); c.border = _borde()
+    ws.row_dimensions[fila_t].height = 22
+
+    response = HttpResponse(
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+    nombre_archivo = f"Salon_{curso}_{paralelo}_{expreso.placa}".replace(' ', '_').replace('/', '-')
+    response['Content-Disposition'] = f'attachment; filename="{nombre_archivo}.xlsx"'
     wb.save(response)
     return response
