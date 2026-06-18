@@ -23,7 +23,7 @@
     </div>
     <div class="flex gap-2 items-center">
       <span class="badge badge-green">{{ salon.total }} estudiante{{ salon.total|pluralize:"s" }}</span>
-      <a href="{% url 'descargar_excel' %}" class="btn btn-success btn-sm">⬇️ Descargar Excel Completo</a>
+      <a href="{% url 'descargar_excel_salon_profesor' %}?curso={{ salon.curso|urlencode }}&paralelo={{ salon.paralelo|urlencode }}" class="btn btn-success btn-sm">⬇️ Descargar Excel</a>
     </div>
   </div>
 

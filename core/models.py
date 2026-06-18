@@ -8,7 +8,7 @@ class Usuario(AbstractUser):
         ('padre', 'Padre de Familia'),
     ]
     rol = models.CharField(max_length=20, choices=ROL_CHOICES, default='padre')
-    telefono = models.CharField(max_length=15, blank=True)  # ← AGREGA ESTA LÍNEA
+    telefono = models.CharField(max_length=15, blank=True)  
 
     def __str__(self):
         return f"{self.get_full_name()} ({self.get_rol_display()})"
@@ -23,8 +23,8 @@ class Usuario(AbstractUser):
         return self.rol == 'padre'
 
 
-class Padre(models.Model):
-    usuario = models.OneToOneField(Usuario, on_delete=models.CASCADE, related_name='padre_perfil')
+class Padre(models.Model): #Crear una tabla llamada Padre que tenga una relación uno a uno con el modelo Usuario
+    usuario = models.OneToOneField(Usuario, on_delete=models.CASCADE, related_name='padre_perfil') 
     cedula = models.CharField(max_length=13, unique=True)
     telefono = models.CharField(max_length=15)
 
@@ -36,8 +36,8 @@ class Padre(models.Model):
         verbose_name_plural = 'Padres de Familia'
 
 
-class Expreso(models.Model):
-    transportista = models.ForeignKey(
+class Expreso(models.Model): #Crear una tabla llamada Expreso que tenga una relación de clave foránea con el modelo Usuario (transportista)
+    transportista = models.ForeignKey( 
         Usuario, on_delete=models.SET_NULL, null=True, blank=True,
         limit_choices_to={'rol': 'transportista'},
         related_name='expresos'
@@ -65,7 +65,7 @@ class Expreso(models.Model):
         verbose_name_plural = 'Expresos'
 
 
-class Estudiante(models.Model):
+class Estudiante(models.Model):#Crear una tabla llamada Estudiante que tenga una relación de clave foránea con el modelo Padre y otra relación de clave foránea con el modelo Expreso 
     ESTADO_CHOICES = [
         ('pendiente', 'Pendiente'),
         ('activo', 'Activo'),
@@ -113,7 +113,7 @@ class Estudiante(models.Model):
 
     padre = models.ForeignKey(Padre, on_delete=models.CASCADE, related_name='estudiantes')
     expreso = models.ForeignKey(Expreso, on_delete=models.SET_NULL, null=True, blank=True, related_name='estudiantes')
-    nombre = models.CharField(max_length=100)
+    nombre = models.CharField(max_length=100) #Crear una columna llamada nombre
     apellido = models.CharField(max_length=100)
     curso = models.CharField(max_length=50, choices=CURSO_CHOICES)          
     paralelo = models.CharField(max_length=5)

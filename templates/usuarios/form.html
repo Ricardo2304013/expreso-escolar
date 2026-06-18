@@ -26,11 +26,19 @@
     </div>
 
     <!-- ← AGREGA ESTO JUSTO AQUÍ -->
-    <div class="form-group">
-      <label class="form-label">Teléfono <span class="text-muted" style="font-weight:400">(requerido para transportistas)</span></label>
-      {{ form.telefono }}
-    </div>
-    
+    {% if not padre_form %}
+      <div class="form-group">
+        <label class="form-label">Teléfono <span class="text-muted" style="font-weight:400">(requerido para transportistas)</span></label>
+        {{ form.telefono }}
+      </div>
+      {% endif %}
+
+      {% if padre_form %}
+      <div class="form-group">
+        <label class="form-label">Teléfono</label>
+        {{ padre_form.telefono }}
+      </div>
+    {% endif %}
     <div class="form-grid">
       <div class="form-group">
         <label class="form-label">Nueva Contraseña (opcional)</label>

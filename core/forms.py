@@ -13,7 +13,7 @@ class LoginForm(AuthenticationForm):
         widget=forms.PasswordInput(attrs={'class': 'form-control', 'placeholder': '••••••••'})
     )
 
-
+# FORMULARIO DE REGISTRO DE PADRES
 class RegistroPadreForm(forms.Form):
     nombre = forms.CharField(label='Nombre', max_length=100,
         widget=forms.TextInput(attrs={'class': 'form-control'}))
@@ -31,12 +31,14 @@ class RegistroPadreForm(forms.Form):
         widget=forms.PasswordInput(attrs={'class': 'form-control'}))
 
     def clean_email(self):
+        # Valida que el correo electrónico no esté ya registrado en el sistema.
         email = self.cleaned_data['email']
         if Usuario.objects.filter(email=email).exists():
             raise forms.ValidationError('Este correo ya está registrado.')
         return email
 
     def clean_cedula(self):
+        # Valida que la cédula no esté ya registrada por otro padre.
         cedula = self.cleaned_data['cedula']
         if Padre.objects.filter(cedula=cedula).exists():
             raise forms.ValidationError('Esta cédula ya está registrada.')
@@ -46,13 +48,14 @@ class RegistroPadreForm(forms.Form):
         cleaned_data = super().clean()
         p1 = cleaned_data.get('password1')
         p2 = cleaned_data.get('password2')
+        # Validar que las contraseñas coincidan
         if p1 and p2 and p1 != p2:
             raise forms.ValidationError('Las contraseñas no coinciden.')
         if p1 and len(p1) < 8:
             raise forms.ValidationError('La contraseña debe tener al menos 8 caracteres.')
         return cleaned_data
 
-
+# FORMULARIO DE ESTUDIANTES (PADRES)
 class EstudianteForm(forms.ModelForm):
     class Meta:
         model = Estudiante
@@ -67,12 +70,12 @@ class EstudianteForm(forms.ModelForm):
         widgets = {
             'nombre':    forms.TextInput(attrs={'class': 'form-control'}),
             'apellido':  forms.TextInput(attrs={'class': 'form-control'}),
-            'curso':     forms.Select(attrs={'class': 'form-select'}),
+            'curso':     forms.Select(attrs={'class': 'form-select'}), # Select desplegable para cursos predefinidos
             'paralelo':  forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ej: A'}),
-            'direccion': forms.Select(attrs={'class': 'form-select'}),
+            'direccion': forms.Select(attrs={'class': 'form-select'}),  # Select con direcciones predefinidas
         }
 
-
+# FORMULARIO DE EXPRESOS (ADMIN)
 class ExpresoForm(forms.ModelForm):
     class Meta:
         model = Expreso
@@ -90,14 +93,15 @@ class ExpresoForm(forms.ModelForm):
         }
 
     def __init__(self, *args, **kwargs):
+        # Muestra solo usuarios con rol 'transportista' y que estén activos
         super().__init__(*args, **kwargs)
         self.fields['transportista'].queryset = Usuario.objects.filter(rol='transportista', is_active=True)
 
-
+# FORMULARIO DE ASIGNACIÓN (ADMIN)
 class AsignacionForm(forms.ModelForm):
     TIPO_ESTUDIANTE = [
-        ('pendiente', 'Estudiantes Pendientes'),
-        ('no_aceptado', 'Estudiantes No Aceptados'),
+        ('pendiente', 'Estudiantes Pendientes'), # Esperando asignación
+        ('no_aceptado', 'Estudiantes No Aceptados'), # Fueron rechazados por un transportista
     ]
     tipo_estudiante = forms.ChoiceField(
         choices=TIPO_ESTUDIANTE,
@@ -115,17 +119,19 @@ class AsignacionForm(forms.ModelForm):
             'estudiante': forms.Select(attrs={'class': 'form-select'}),
             'expreso': forms.Select(attrs={'class': 'form-select'}),
         }
-
+    # Personaliza el queryset de estudiantes según el tipo seleccionado (pendiente o no aceptado)
     def __init__(self, *args, **kwargs):
         tipo = kwargs.pop('tipo_estudiante', 'pendiente')
         super().__init__(*args, **kwargs)
         if tipo == 'no_aceptado':
             self.fields['estudiante'].queryset = Estudiante.objects.filter(estado='no_aceptado')
         else:
+            # Solo estudiantes pendientes que NO tengan expreso asignado aún
             self.fields['estudiante'].queryset = Estudiante.objects.filter(estado='pendiente', expreso__isnull=True)  # ← solo sin expreso asignado
+        # Filtrar expresos: solo activos y con cupos disponibles
         self.fields['expreso'].queryset = Expreso.objects.filter(activo=True, cupos_disponibles__gt=0)
 
-
+# FORMULARIO PARA ACEPTAR ASIGNACIÓN (TRANSPORTISTA)
 class AceptarAsignacionForm(forms.Form):
     tipo_servicio = forms.ChoiceField(
         choices=[('medio', 'Medio Tiempo'), ('completo', 'Completo')],
@@ -133,7 +139,7 @@ class AceptarAsignacionForm(forms.Form):
         widget=forms.Select(attrs={'class': 'form-select'})
     )
 
-
+# FORMULARIO DE INCIDENCIAS (TRANSPORTISTA)
 class IncidenciaForm(forms.ModelForm):
     class Meta:
         model = Incidencia
@@ -145,13 +151,15 @@ class IncidenciaForm(forms.ModelForm):
                 'placeholder': 'Describa la incidencia en detalle...', 'maxlength': 500}),
         }
 
-
+# FORMULARIO DE USUARIOS (ADMIN)
 class UsuarioAdminForm(forms.ModelForm):
+    # Campos de contraseña: required=False permite editar sin cambiarla
     password1 = forms.CharField(label='Contraseña', widget=forms.PasswordInput(attrs={'class': 'form-control'}), required=False)
     password2 = forms.CharField(label='Confirmar contraseña', widget=forms.PasswordInput(attrs={'class': 'form-control'}), required=False)
 
     class Meta:
         model = Usuario
+        # NOTA: No incluimos 'username' porque se usa el email como username
         fields = ['first_name', 'last_name', 'email', 'rol', 'telefono', 'is_active']  # ← sin 'username'
         labels = {
             'first_name': 'Nombre',
@@ -173,16 +181,34 @@ class UsuarioAdminForm(forms.ModelForm):
         email = self.cleaned_data['email']
         # Verificar que el email no esté en uso por otro usuario
         qs = Usuario.objects.filter(email=email)
+        # Si estamos editando un usuario existente, excluirlo de la verificación
         if self.instance.pk:
             qs = qs.exclude(pk=self.instance.pk)
         if qs.exists():
             raise forms.ValidationError('Este correo ya está registrado.')
         return email
 
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['telefono'].required = False  # Hacer que el teléfono no sea obligatorio (solo para transportistas)
+
     def clean(self):
         cleaned = super().clean()
         p1 = cleaned.get('password1')
         p2 = cleaned.get('password2')
+         # Solo validar coincidencia si se ingresaron ambas contraseñas
         if p1 and p2 and p1 != p2:
             raise forms.ValidationError('Las contraseñas no coinciden.')
         return cleaned
+
+# FORMULARIO PARA DATOS DE PADRE (usado junto con UsuarioAdminForm)
+class PadrePerfilForm(forms.ModelForm):
+    class Meta:
+        model = Padre
+        fields = ['telefono']
+        labels = {
+            'telefono': 'Teléfono del Representante',
+        }
+        widgets = {
+            'telefono': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ej: 0991234567'}),
+        }

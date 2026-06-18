@@ -1,13 +1,16 @@
 from .models import Usuario, Padre, Expreso, Estudiante, Asignacion, Incidencia, AuditoriaLogin
 from .utils_excel import (generar_excel_completo, generar_excel_transportista,
                            generar_excel_un_expreso, generar_excel_salones_expreso,
-                           generar_excel_un_salon)
+                           generar_excel_un_salon, generar_excel_salon_profesor)
+from .forms import (LoginForm, RegistroPadreForm, EstudianteForm, ExpresoForm,
+                    AsignacionForm, AceptarAsignacionForm, IncidenciaForm,
+                    UsuarioAdminForm, PadrePerfilForm)
 import csv
-from django.http import HttpResponse
-from django.core.paginator import Paginator
-from django.db.models import Q
+from django.http import HttpResponse # Para enviar respuestas HTTP (descargas, etc.)
+from django.core.paginator import Paginator # Para paginar listados largos
+from django.db.models import Q # Para hacer búsquedas
 from django.shortcuts import render, redirect, get_object_or_404
-from django.contrib.auth import login, logout, authenticate
+from django.contrib.auth import login, logout, authenticate # Autenticación de usuarios
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.db.models import Count, Q
@@ -16,9 +19,12 @@ from .forms import (LoginForm, RegistroPadreForm, EstudianteForm, ExpresoForm,
                     AsignacionForm, AceptarAsignacionForm, IncidenciaForm, UsuarioAdminForm)
 from .decorators import solo_admin, solo_transportista, solo_padre, admin_o_transportista
 
+# ── OBTENER IP ──────────────────────────────────────────
+
 def obtener_ip(request):
     x_forwarded = request.META.get('HTTP_X_FORWARDED_FOR')
     if x_forwarded:
+        # Si hay múltiples IPs, tomamos la primera (la original del cliente)
         return x_forwarded.split(',')[0].strip()
     return request.META.get('REMOTE_ADDR', '0.0.0.0')
 
@@ -27,7 +33,8 @@ def obtener_ip(request):
 def vista_login(request):
     if request.user.is_authenticated:
         return redirect('dashboard')
-
+    
+    # Inicializamos el formulario de login (vacio si es GET, con datos si es POST)
     form = LoginForm(request, data=request.POST or None)
 
     if request.method == 'POST':
@@ -68,28 +75,33 @@ def vista_login(request):
                 navegador     = navegador,
                 exitoso       = False,
             )
-
+    # Si es GET o el formulario no es válido, renderizamos la página de login con el formulario 
     return render(request, 'auth/login.html', {'form': form})
 
-
+# Crea un usuario con rol 'padre' y su perfil asociado (Padre)
 def vista_registro(request):
     if request.user.is_authenticated:
         return redirect('dashboard')
-    form = RegistroPadreForm(request.POST or None)
-    if request.method == 'POST' and form.is_valid():
+    form = RegistroPadreForm(request.POST or None) # Inicializamos el formulario con POST si es una solicitud POST, o vacío si es GET
+    if request.method == 'POST' and form.is_valid(): # El usuario envió los datos y Validamos el formulario.
+        # Limpiamos los datos validados
         d = form.cleaned_data
+        # Creamos el usuario (username = email por simplicidad)
         user = Usuario.objects.create_user(
             username=d['email'], email=d['email'],
             password=d['password1'], first_name=d['nombre'],
             last_name=d['apellido'], rol='padre'
         )
+        # Creamos el perfil de padre asociado a este usuario
         Padre.objects.create(usuario=user, cedula=d['cedula'], telefono=d['telefono'])
+        # Autenticamos al usuario automáticamente después del registro
         login(request, user)
         messages.success(request, f'¡Bienvenido/a {user.first_name}! Tu cuenta fue creada correctamente.')
         return redirect('dashboard')
+    # Si es GET o el formulario no es válido, mostramos el formulario de registro
     return render(request, 'auth/registro.html', {'form': form})
 
-
+# Cierra la sesión del usuario actual y registra el evento en auditoría.
 def vista_logout(request):
     if request.user.is_authenticated:
         AuditoriaLogin.objects.create(
@@ -119,8 +131,8 @@ def dashboard(request):
 def dashboard_admin(request):
     expresos = Expreso.objects.all().select_related('transportista')
     estudiantes = Estudiante.objects.all()
-    incidencias = Incidencia.objects.all().select_related('expreso', 'reportado_por')[:50]  # antes :10
-    ultimos_estudiantes = estudiantes.order_by('-created_at')[:50]                          # antes :5
+    incidencias = Incidencia.objects.all().select_related('expreso', 'reportado_por')[:50]  # Últimas 50
+    ultimos_estudiantes = estudiantes.order_by('-created_at')[:50]                          # Últimos 50 registrados
 
     ctx = {
         'total_estudiantes': estudiantes.count(),
@@ -136,8 +148,9 @@ def dashboard_admin(request):
     }
     return render(request, 'dashboard/admin.html', ctx)
 
-
+# Muestra el expreso asignado, estudiantes activos y solicitudes pendientes.
 def dashboard_transportista(request):
+    # Buscamos el expreso asociado a este transportista
     try:
         expreso = Expreso.objects.get(transportista=request.user)
     except Expreso.DoesNotExist:
@@ -148,8 +161,17 @@ def dashboard_transportista(request):
     incidencias = []
 
     if expreso:
-        estudiantes_activos = Estudiante.objects.filter(expreso=expreso, estado='activo').select_related('padre__usuario')
+        # Estudiantes activos en este expreso
+        estudiantes_activos = Estudiante.objects.filter(expreso=expreso, estado='activo').select_related('padre__usuario').prefetch_related('asignaciones')
+
+        # Crear un diccionario estudiante_id -> tipo_servicio de la última asignación aceptada
+        tipos_servicio = {}
+        for est in estudiantes_activos:
+            asig_aceptada = est.asignaciones.filter(expreso=expreso, estado='aceptado').order_by('-fecha_asignacion').first()
+            tipos_servicio[est.pk] = asig_aceptada.tipo_servicio if asig_aceptada else 'completo'
+        # Asignaciones pendientes de aceptar/rechazar
         pendientes = Asignacion.objects.filter(expreso=expreso, estado='pendiente').select_related('estudiante__padre__usuario')
+        # Últimas 5 incidencias de este expreso
         incidencias = Incidencia.objects.filter(expreso=expreso)[:5]
 
     ctx = {
@@ -157,13 +179,14 @@ def dashboard_transportista(request):
         'estudiantes_activos': estudiantes_activos,
         'pendientes': pendientes,
         'incidencias': incidencias,
+        'tipos_servicio': tipos_servicio if expreso else {},
     }
     return render(request, 'dashboard/transportista.html', ctx)
 
 
 def dashboard_padre(request):
     try:
-        padre = request.user.padre_perfil
+        padre = request.user.padre_perfil # Relación inversa OneToOne
         estudiantes = Estudiante.objects.filter(padre=padre).select_related('expreso__transportista')
     except Padre.DoesNotExist:
         padre = None
@@ -176,12 +199,12 @@ def dashboard_padre(request):
 @login_required
 @solo_padre
 def registrar_estudiante(request):
-    padre = get_object_or_404(Padre, usuario=request.user)
-    form = EstudianteForm(request.POST or None)
+    padre = get_object_or_404(Padre, usuario=request.user) # Obtenemos el perfil de padre asociado al usuario actual. Si no existe, mostramos 404.
+    form = EstudianteForm(request.POST or None) # Inicializamos el formulario con POST si es una solicitud POST, o vacío si es GET
     if request.method == 'POST' and form.is_valid():
-        est = form.save(commit=False)
-        est.padre = padre
-        est.estado = 'pendiente'
+        est = form.save(commit=False) # No guardamos aún porque necesitamos asignar el padre
+        est.padre = padre # Padre registrando a un estudiante
+        est.estado = 'pendiente' # Estado inicial: esperando asignación
         est.save()
         messages.success(request, f'Estudiante {est.nombre} {est.apellido} registrado. El administrador lo asignará pronto.')
         return redirect('dashboard')
@@ -195,11 +218,14 @@ def lista_estudiantes(request):
     estado = request.GET.get('estado', '')
     busqueda = request.GET.get('q', '')
 
+     # Cargamos estudiantes con relaciones necesarias para evitar N+1 queries
     estudiantes = Estudiante.objects.all().select_related('padre__usuario', 'expreso')
 
+    # Aplicar filtro de estado si está presente
     if estado:
         estudiantes = estudiantes.filter(estado=estado)
 
+    # Aplicar búsqueda por nombre, apellido, padre, curso o paralelo
     if busqueda:
         estudiantes = estudiantes.filter(
             Q(nombre__icontains=busqueda) |
@@ -222,16 +248,17 @@ def lista_estudiantes(request):
         'busqueda': busqueda,
         'total': paginator.count,
     })
-
+# retirar estudiante 
 @login_required
 @solo_padre
 def retirar_estudiante(request, pk):
     padre = get_object_or_404(Padre, usuario=request.user)
     est = get_object_or_404(Estudiante, pk=pk, padre=padre)
     if est.expreso:
+        # Liberamos el cupo ocupado por este estudiante
         est.expreso.cupos_disponibles += 1
         est.expreso.save()
-        est.expreso = None
+        est.expreso = None # Desvinculamos del expreso
     est.estado = 'retirado'
     est.save()
     messages.success(request, f'{est.nombre} fue retirado del servicio.')
@@ -285,8 +312,10 @@ def lista_expresos(request):
     busqueda = request.GET.get('q', '')
     filtro_estado = request.GET.get('estado', '')
 
+    # Obtener todos los expresos de la BD
     expresos = Expreso.objects.all().select_related('transportista')
 
+    # Búsqueda por nombre, placa o nombre del transportista
     if busqueda:
         expresos = expresos.filter(
             Q(nombre__icontains=busqueda) |
@@ -294,7 +323,7 @@ def lista_expresos(request):
             Q(transportista__first_name__icontains=busqueda) |
             Q(transportista__last_name__icontains=busqueda)
         )
-
+    # Filtro por estado
     if filtro_estado == 'activo':
         expresos = expresos.filter(activo=True)
     elif filtro_estado == 'inactivo':
@@ -306,6 +335,7 @@ def lista_expresos(request):
     page = request.GET.get('page', 1)
     expresos_paginados = paginator.get_page(page)
 
+    #Enviar los datos a la plantilla HTML
     return render(request, 'expresos/lista.html', {
         'expresos': expresos_paginados,
         'busqueda': busqueda,
@@ -313,20 +343,20 @@ def lista_expresos(request):
         'total': paginator.count,
     })
 
-
+# Crear nuevo expreso (solo admin)
 @login_required
 @solo_admin
 def crear_expreso(request):
     form = ExpresoForm(request.POST or None)
     if request.method == 'POST' and form.is_valid():
         exp = form.save(commit=False)
-        exp.cupos_disponibles = exp.capacidad
+        exp.cupos_disponibles = exp.capacidad # Al inicio, todos los cupos están libres
         exp.save()
         messages.success(request, f'Expreso "{exp.nombre}" creado correctamente.')
         return redirect('lista_expresos')
     return render(request, 'expresos/form.html', {'form': form, 'titulo': 'Crear Expreso'})
 
-
+# Editar expreso existente (solo admin)
 @login_required
 @solo_admin
 def editar_expreso(request, pk):
@@ -338,13 +368,13 @@ def editar_expreso(request, pk):
         return redirect('lista_expresos')
     return render(request, 'expresos/form.html', {'form': form, 'titulo': 'Editar Expreso'})
 
-
+# Eliminar expreso (solo admin)
 @login_required
 @solo_admin
 def eliminar_expreso(request, pk):
-    exp = get_object_or_404(Expreso, pk=pk)
-    if request.method == 'POST':
-        exp.delete()
+    exp = get_object_or_404(Expreso, pk=pk) 
+    if request.method == 'POST': # Solo si confirma la eliminación
+        exp.delete() # Borra de la BD
         messages.success(request, 'Expreso eliminado.')
     return redirect('lista_expresos')
 
@@ -370,7 +400,8 @@ def crear_asignacion(request):
         asig.estudiante.save()
         messages.success(request, f'Asignación creada para {asig.estudiante}. El transportista debe aceptarla.')
         return redirect('lista_estudiantes')
-
+    
+    # Contamos estudiantes en cada estado para mostrar en la plantilla
     pendientes_count   = Estudiante.objects.filter(estado='pendiente').count()
     no_aceptados_count = Estudiante.objects.filter(estado='no_aceptado').count()
 
@@ -381,7 +412,7 @@ def crear_asignacion(request):
         'no_aceptados_count': no_aceptados_count,
     })
 
-
+# Aceptar asignación (solo transportista, solo pendientes)
 @login_required
 @solo_transportista
 def aceptar_asignacion(request, pk):
@@ -391,15 +422,17 @@ def aceptar_asignacion(request, pk):
         asig.tipo_servicio = form.cleaned_data['tipo_servicio']
         asig.estado = 'aceptado'
         asig.save()
+        # Actualizar estudiante
         asig.estudiante.estado = 'activo'
         asig.estudiante.save()
+        # Ocupar un cupo en el expreso
         asig.expreso.cupos_disponibles = max(0, asig.expreso.cupos_disponibles - 1)
         asig.expreso.save()
         messages.success(request, f'{asig.estudiante} fue aceptado en el expreso.')
         return redirect('dashboard')
     return render(request, 'asignaciones/aceptar.html', {'asig': asig, 'form': form})
 
-
+# Rechazar asignación (solo transportista, solo pendientes)
 @login_required
 @solo_transportista
 def rechazar_asignacion(request, pk):
@@ -434,7 +467,7 @@ def reportar_incidencia(request):
         return redirect('dashboard')
     return render(request, 'incidencias/form.html', {'form': form, 'expreso': expreso})
 
-
+# Lista de incidencias (solo admin)
 @login_required
 @solo_admin
 def lista_incidencias(request):
@@ -456,14 +489,15 @@ def lista_usuarios(request):
         'padres': padres,
     })
 
-
+# Crear nuevo usuario (solo admin)
 @login_required
 @solo_admin
 def crear_usuario(request):
     form = UsuarioAdminForm(request.POST or None)
+    padre_form = None
+ 
     if request.method == 'POST' and form.is_valid():
         user = form.save(commit=False)
-        # Hacer que el username siempre sea igual al email
         user.username = form.cleaned_data['email']
         pw = form.cleaned_data.get('password1')
         if pw:
@@ -471,35 +505,154 @@ def crear_usuario(request):
         else:
             user.set_unusable_password()
         user.save()
-        # Si es padre, crear perfil automáticamente
+ 
         if user.rol == 'padre':
-            from .models import Padre
-            if not hasattr(user, 'padre_perfil'):
-                Padre.objects.get_or_create(
-                    usuario=user,
-                    defaults={'cedula': '—', 'telefono': '—'}
-                )
-        messages.success(request, f'Usuario {user.get_full_name()} creado. Puede ingresar con su correo.')
+            Padre.objects.get_or_create(
+                usuario=user,
+                defaults={'cedula': '-', 'telefono': '-'}
+            )
+ 
+        messages.success(request, f'Usuario {user.get_full_name()} creado.')
         return redirect('lista_usuarios')
-    return render(request, 'usuarios/form.html', {'form': form, 'titulo': 'Crear Usuario'})
+ 
+    return render(request, 'usuarios/form.html', {
+        'form': form,
+        'padre_form': padre_form,
+        'titulo': 'Crear Usuario',
+    })
+    form = UsuarioAdminForm(request.POST or None)
+    padre_form = None
 
+    if request.method == 'POST' and form.is_valid():
+        user = form.save(commit=False)
+        user.username = form.cleaned_data['email']
+        pw = form.cleaned_data.get('password1')
+        if pw:
+            user.set_password(pw)
+        else:
+            user.set_unusable_password()
+        user.save()
+
+        if user.rol == 'padre':
+            Padre.objects.get_or_create(
+                usuario=user,
+                defaults={'cedula': '-', 'telefono': '-'}
+            )
+
+        messages.success(request, f'Usuario {user.get_full_name()} creado.')
+        return redirect('lista_usuarios')
+
+    return render(request, 'usuarios/form.html', {
+        'form': form,
+        'padre_form': padre_form,
+        'titulo': 'Crear Usuario',
+    })
+    form = UsuarioAdminForm(request.POST or None)
+    padre_form = None
+
+    if request.method == 'POST' and form.is_valid():
+        user = form.save(commit=False)
+        user.username = form.cleaned_data['email']
+        pw = form.cleaned_data.get('password1')
+        if pw:
+            user.set_password(pw)
+        else:
+            user.set_unusable_password()
+        user.save()
+
+        if user.rol == 'padre':
+            Padre.objects.get_or_create(
+                usuario=user,
+                defaults={'cedula': '—', 'telefono': '—'}
+            )
+
+        messages.success(request, f'Usuario {user.get_full_name()} creado.')
+        return redirect('lista_usuarios')
+
+    return render(request, 'usuarios/form.html', {
+        'form': form,
+        'padre_form': padre_form,
+        'titulo': 'Crear Usuario',
+    })
+
+# Editar usuario existente (solo admin)
 @login_required
 @solo_admin
 def editar_usuario(request, pk):
     user = get_object_or_404(Usuario, pk=pk)
     form = UsuarioAdminForm(request.POST or None, instance=user)
-    if request.method == 'POST' and form.is_valid():
-        user = form.save(commit=False)
-        # Sincronizar username con email siempre
-        user.username = form.cleaned_data['email']
-        pw = form.cleaned_data.get('password1')
-        if pw:
-            user.set_password(pw)
-        user.save()
-        messages.success(request, f'Usuario {user.get_full_name()} actualizado.')
-        return redirect('lista_usuarios')
-    return render(request, 'usuarios/form.html', {'form': form, 'titulo': 'Editar Usuario'})
 
+    padre_form = None
+    if user.rol == 'padre':
+        padre_perfil, _ = Padre.objects.get_or_create(
+            usuario=user,
+            defaults={'cedula': '—', 'telefono': '—'}
+        )
+        padre_form = PadrePerfilForm(request.POST or None, instance=padre_perfil)
+
+    if request.method == 'POST':
+        forms_validos = form.is_valid()
+        if padre_form:
+            forms_validos = forms_validos and padre_form.is_valid()
+
+        if forms_validos:
+            user = form.save(commit=False)
+            user.username = form.cleaned_data['email']
+            pw = form.cleaned_data.get('password1')
+            if pw:
+                user.set_password(pw)
+            user.save()
+
+            if padre_form:
+                padre_form.save()
+
+            messages.success(request, f'Usuario {user.get_full_name()} actualizado.')
+            return redirect('lista_usuarios')
+
+    return render(request, 'usuarios/form.html', {
+        'form': form,
+        'padre_form': padre_form,
+        'titulo': 'Editar Usuario',
+    })
+    user = get_object_or_404(Usuario, pk=pk)
+    form = UsuarioAdminForm(request.POST or None, instance=user)
+
+    # Si es padre, cargamos también su perfil de Padre
+    padre_form = None
+    if user.rol == 'padre':
+        padre_perfil, _ = Padre.objects.get_or_create(
+            usuario=user,
+            defaults={'cedula': '—', 'telefono': '—'}
+        )
+        padre_form = PadrePerfilForm(request.POST or None, instance=padre_perfil)
+
+    if request.method == 'POST':
+        forms_validos = form.is_valid()
+        if padre_form:
+            forms_validos = forms_validos and padre_form.is_valid()
+
+        if forms_validos:
+            user = form.save(commit=False)
+            user.username = form.cleaned_data['email']
+            pw = form.cleaned_data.get('password1')
+            if pw:
+                user.set_password(pw)
+            user.save()
+
+            if padre_form:
+                padre_form.save()
+
+            messages.success(request, f'Usuario {user.get_full_name()} actualizado.')
+            return redirect('lista_usuarios')
+
+    return render(request, 'usuarios/form.html', {
+        'form': form,
+        'padre_form': padre_form,
+        'titulo': 'Editar Usuario',
+    })
+    
+
+# Eliminar usuario (solo admin, no puede eliminarse a sí mismo)
 @login_required
 @solo_admin
 def eliminar_usuario(request, pk):
@@ -578,6 +731,7 @@ def listado_por_expreso(request):
         'tab_activo': tab_activo,
     })
 
+# Listado por salón (agrupado por curso-paralelo, sin importar el expreso)
 @login_required
 @solo_admin
 def listado_por_salon(request):
@@ -588,6 +742,7 @@ def listado_por_salon(request):
         estudiantes = Estudiante.objects.filter(
             estado='activo', curso=curso, paralelo=paralelo
         ).select_related('expreso__transportista', 'padre__usuario').order_by('expreso__nombre', 'apellido')
+        # Expresos distintos que tienen estudiantes en este salón
         expresos_en_salon = Expreso.objects.filter(
             estudiantes__curso=curso,
             estudiantes__paralelo=paralelo,
@@ -603,7 +758,7 @@ def listado_por_salon(request):
         })
     return render(request, 'listados/admin_por_salon.html', {'salones': salones})
 
-
+# Listado de salones para un transportista específico (solo muestra los salones que tienen estudiantes de su expreso)
 @login_required
 @solo_transportista
 def listado_transportista_salones(request):
@@ -639,13 +794,14 @@ def listado_transportista_salones(request):
 from .utils_excel import (generar_excel_completo, generar_excel_transportista,
                            generar_excel_un_expreso, generar_excel_salones_expreso)
 
+# Descargar Excel completo (solo admin)
 @login_required
 @solo_admin
 def descargar_excel_completo(request):
     expresos = Expreso.objects.filter(activo=True).select_related('transportista')
     return generar_excel_completo(expresos)
 
-
+# Descargar Excel de un transportista (solo transportista, solo su expreso)
 @login_required
 @solo_transportista
 def descargar_excel_transportista(request):
@@ -656,19 +812,21 @@ def descargar_excel_transportista(request):
         return redirect('dashboard')
     return generar_excel_transportista(expreso)
 
+# Descargar Excel de un expreso específico (solo admin)
 @login_required
 @solo_admin
 def descargar_excel_un_expreso(request, expreso_id):
     expreso = get_object_or_404(Expreso, pk=expreso_id)
     return generar_excel_un_expreso(expreso)
 
-
+# Descargar Excel de los salones de un expreso específico (solo admin)
 @login_required
 @solo_admin
 def descargar_excel_salones_expreso(request, expreso_id):
     expreso = get_object_or_404(Expreso, pk=expreso_id)
     return generar_excel_salones_expreso(expreso)
 
+# Descargar Excel de un salón específico (solo admin)
 @login_required
 @solo_admin
 def lista_auditoria(request):
@@ -695,6 +853,7 @@ def lista_auditoria(request):
         'filtro':    filtro,
     })
 
+# Descargar Excel de un salón específico (solo admin)
 @login_required
 @solo_admin
 def descargar_excel_salon(request, expreso_id):
@@ -703,7 +862,7 @@ def descargar_excel_salon(request, expreso_id):
     paralelo = request.GET.get('paralelo', '')
     return generar_excel_un_salon(expreso, curso, paralelo)
 
-
+# Descargar Excel de un salón específico para un transportista (solo muestra su expreso)
 @login_required
 @solo_transportista
 def descargar_excel_salon_transportista(request, expreso_id):
@@ -711,3 +870,11 @@ def descargar_excel_salon_transportista(request, expreso_id):
     curso    = request.GET.get('curso', '')
     paralelo = request.GET.get('paralelo', '')
     return generar_excel_un_salon(expreso, curso, paralelo)
+
+# Descargar Excel para profesores 
+@login_required
+@solo_admin
+def descargar_excel_salon_profesor(request):
+    curso = request.GET.get('curso', '')
+    paralelo = request.GET.get('paralelo', '')
+    return generar_excel_salon_profesor(curso, paralelo)

@@ -593,3 +593,70 @@ def generar_excel_un_salon(expreso, curso, paralelo, institucion="Unidad Educati
     response['Content-Disposition'] = f'attachment; filename="{nombre_archivo}.xlsx"'
     wb.save(response)
     return response
+
+def generar_excel_salon_profesor(curso, paralelo):
+    from django.apps import apps
+    Estudiante = apps.get_model('core', 'Estudiante')
+
+    wb = Workbook()
+    wb.remove(wb.active)
+
+    estudiantes = list(
+        Estudiante.objects.filter(
+            estado='activo',
+            curso=curso,
+            paralelo=paralelo
+        ).select_related('expreso__transportista', 'padre__usuario')
+         .order_by('apellido')
+    )
+
+    ws = wb.create_sheet(f"{curso} {paralelo}"[:31])
+    ws.sheet_view.showGridLines = False
+
+    anchos = [5, 18, 18, 14, 20, 16, 22, 16]
+    for i, a in enumerate(anchos, 1):
+        ws.column_dimensions[get_column_letter(i)].width = a
+
+    _titulo(ws, f"LISTADO POR SALON - {curso} '{paralelo}'", 8)
+
+    headers = ['N°', 'APELLIDO', 'NOMBRE', 'EXPRESO',
+               'TRANSPORTISTA', 'TEL. TRANSPORTISTA',
+               'REPRESENTANTE', 'TEL. REPRESENTANTE']
+    ws.row_dimensions[3].height = 22
+    for i, h in enumerate(headers, 1):
+        _header_cell(ws, 3, i, h)
+
+    for idx, est in enumerate(estudiantes, 1):
+        fila = idx + 3
+        bg = BLANCO if idx % 2 == 0 else AZUL_MUY_CLARO
+        ws.row_dimensions[fila].height = 18
+
+        expreso_nombre = est.expreso.nombre if est.expreso else '—'
+        trans_nombre = est.expreso.transportista.get_full_name() if est.expreso and est.expreso.transportista else '—'
+        trans_tel = est.expreso.transportista.telefono if est.expreso and est.expreso.transportista else '—'
+
+        vals = [idx, est.apellido, est.nombre, expreso_nombre,
+                trans_nombre, trans_tel,
+                est.padre.usuario.get_full_name(), est.padre.telefono]
+
+        for col, val in enumerate(vals, 1):
+            _data_cell(ws, fila, col, val, bg, 'center' if col in [1] else 'left')
+
+    fila_t = len(estudiantes) + 5
+    ws.merge_cells(f'A{fila_t}:G{fila_t}')
+    c = ws[f'A{fila_t}']
+    c.value = f"TOTAL ESTUDIANTES - {curso} '{paralelo}':"
+    c.font = Font(bold=True, size=10, name="Arial", color=BLANCO)
+    c.fill = _fill(AZUL_MEDIO); c.alignment = _alinear('right','center'); c.border = _borde()
+    c = ws.cell(row=fila_t, column=8, value=len(estudiantes))
+    c.font = Font(bold=True, size=14, name="Arial", color=BLANCO)
+    c.fill = _fill(AZUL_OSCURO); c.alignment = _alinear('center','center'); c.border = _borde()
+    ws.row_dimensions[fila_t].height = 22
+
+    response = HttpResponse(
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+    nombre_archivo = f"Salon_{curso}_{paralelo}".replace(' ', '_').replace('/', '-')
+    response['Content-Disposition'] = f'attachment; filename="{nombre_archivo}.xlsx"'
+    wb.save(response)
+    return response

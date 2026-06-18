@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load dict_extras %}
 {% block title %}Mi Dashboard - Expreso Escolar{% endblock %}
 {% block page_title %}Mi Panel de Transportista{% endblock %}
 {% block breadcrumb %}Inicio / Mi Dashboard{% endblock %}
@@ -61,8 +62,12 @@
         <td>{{ est.padre.usuario.get_full_name }}</td>
         <td>{{ est.padre.telefono }}</td>
         <td>
-          {% with est.asignaciones.filter as asigs %}
-          <span class="badge badge-blue">Completo</span>
+          {% with tipo=tipos_servicio|dict_get:est.pk %}
+          {% if tipo == 'medio' %}
+            <span class="badge badge-yellow">Medio Tiempo</span>
+          {% else %}
+            <span class="badge badge-blue">Completo</span>
+          {% endif %}
           {% endwith %}
         </td>
       </tr>

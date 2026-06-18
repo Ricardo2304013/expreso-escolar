@@ -40,9 +40,10 @@ urlpatterns = [
     path('listados/descargar/mi-excel/', views.descargar_excel_transportista, name='descargar_excel_transportista'),
     path('listados/descargar/expreso/<int:expreso_id>/excel/', views.descargar_excel_un_expreso, name='descargar_excel_un_expreso'),
     path('listados/descargar/expreso/<int:expreso_id>/salones/', views.descargar_excel_salones_expreso, name='descargar_excel_salones_expreso'),
+    #auditoria
     path('auditoria/', views.lista_auditoria, name='lista_auditoria'),
-    path('listados/descargar/salon/<int:expreso_id>/',
-     views.descargar_excel_salon, name='descargar_excel_salon'),
-path('listados/descargar/salon-trans/<int:expreso_id>/',
-     views.descargar_excel_salon_transportista, name='descargar_excel_salon_transportista'),
+    # Descargar Excel para un salón específico (admin)
+    path('listados/descargar/salon/<int:expreso_id>/', views.descargar_excel_salon, name='descargar_excel_salon'),
+    path('listados/descargar/salon-trans/<int:expreso_id>/', views.descargar_excel_salon_transportista, name='descargar_excel_salon_transportista'),
+    path('listados/descargar/salon-profesor/', views.descargar_excel_salon_profesor, name='descargar_excel_salon_profesor'),
 ]
